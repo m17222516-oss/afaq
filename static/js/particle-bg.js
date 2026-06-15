@@ -1,488 +1,242 @@
 // static/js/particle-bg.js
-import * as THREE from "three";
-import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-
-// ─── Tuning ────────────────────────────────────────────────────────────────
-const REPULSION_STRENGTH = 0.22;
-const REPULSION_RADIUS = 2;
-const RETURN_STRENGTH = 0.045;
-const RETURN_OVERSHOOT = 0.1;
-const Z_INFLUENCE = 0.35;
-const MOUSE_SMOOTHING = 0.25;
-const BLOOM_STRENGTH = 0.45;
-const FIXED_MOUSE_Z = -4;
-
-// Performance: fewer particles = smoother on mid-range hardware
-const PARTICLE_COUNT = 2200;
-
-// ─── Dark theme colors ─────────────────────────────────────────────────────
-const moltenLava = new THREE.Color(0x780000);
-const brickRed = new THREE.Color(0xc1121f);
-const papayaWhip = new THREE.Color(0xfdf0d5);
-const deepSpaceBlue = new THREE.Color(0x003049);
-const steelBlue = new THREE.Color(0x669bbc);
-
-// ─── Light theme color ─────────────────────────────────────────────────────
-const pureBlack = new THREE.Color(0x0d0d0d);
-
-// ─── Module-level state ────────────────────────────────────────────────────
-let scene = null;
-let camera = null;
-let renderer = null;
-let effectComposer = null;
-let animationId = null;
-let isLightTheme = false;
-
-// Pre-allocated reusable vectors
-const _mouseNDC = new THREE.Vector2();
-const _rawMouseWorld = new THREE.Vector3();
-const _targetMouse = new THREE.Vector3(999, 999, 999);
-const _smoothedMouse = new THREE.Vector3(999, 999, 999);
-const _dir = new THREE.Vector3();
-
-// ─── Build gradient background texture ────────────────────────────────────
-function buildGradientTexture(light) {
-  const c = document.createElement("canvas");
-  c.width = 2;
-  c.height = 512;
-  const ctx = c.getContext("2d");
-  const grad = ctx.createLinearGradient(0, c.height, 0, 0);
-
-  if (light) {
-    grad.addColorStop(0, "#faf9f7");
-    grad.addColorStop(1, "#faf9f7");
-  } else {
-    grad.addColorStop(0, "#fdf0d5");
-    grad.addColorStop(1, "#003049");
+class ParticleBackground {
+  constructor() {
+    this.canvas = null;
+    this.ctx = null;
+    this.particles = [];
+    this.animationId = null;
+    this.mouseX = null;
+    this.mouseY = null;
+    this.isLightTheme = false;
   }
 
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, c.width, c.height);
+  init(containerId = "particle-container") {
+    const container = document.getElementById(containerId);
+    if (!container) return;
 
-  const tex = new THREE.CanvasTexture(c);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.ClampToEdgeWrapping;
-  return tex;
-}
+    // Clear container
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
 
-// ─── Build particle sprite texture ────────────────────────────────────────
-function buildParticleTexture(light) {
-  const c = document.createElement("canvas");
-  c.width = 64;
-  c.height = 64;
-  const ctx = c.getContext("2d");
-  const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 30);
+    // Create canvas
+    this.canvas = document.createElement("canvas");
+    this.canvas.style.position = "absolute";
+    this.canvas.style.top = "0";
+    this.canvas.style.left = "0";
+    this.canvas.style.width = "100%";
+    this.canvas.style.height = "100%";
+    this.canvas.style.display = "block";
+    container.appendChild(this.canvas);
 
-  if (light) {
-    grad.addColorStop(0, "rgba(10,  10,  10,  1.0)");
-    grad.addColorStop(0.35, "rgba(15,  15,  15,  0.75)");
-    grad.addColorStop(0.65, "rgba(30,  30,  30,  0.28)");
-    grad.addColorStop(0.88, "rgba(60,  60,  60,  0.07)");
-    grad.addColorStop(1, "rgba(0,   0,   0,   0)");
-  } else {
-    grad.addColorStop(0, "rgba(255, 255, 255, 1.0)");
-    grad.addColorStop(0.25, "rgba(245, 235, 220, 0.95)");
-    grad.addColorStop(0.55, "rgba(180, 100, 80,  0.7)");
-    grad.addColorStop(0.85, "rgba(80,  40,  50,  0.35)");
-    grad.addColorStop(1, "rgba(30,  20,  40,  0)");
+    this.ctx = this.canvas.getContext("2d");
+
+    // Set initial theme
+    this.isLightTheme = document.body.classList.contains("light-theme");
+
+    // Handle resize
+    window.addEventListener("resize", () => this.resize());
+    this.resize();
+
+    // Mouse move for interaction
+    window.addEventListener("mousemove", (e) => {
+      this.mouseX = e.clientX;
+      this.mouseY = e.clientY;
+    });
+
+    window.addEventListener("mouseleave", () => {
+      this.mouseX = null;
+      this.mouseY = null;
+    });
+
+    // Create particles
+    this.createParticles();
+
+    // Start animation
+    this.animate();
+
+    // Watch for theme changes
+    this.observeThemeChanges();
   }
 
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 64, 64);
-
-  const tex = new THREE.CanvasTexture(c);
-  tex.needsUpdate = true;
-  return tex;
-}
-
-// ─── Main init ─────────────────────────────────────────────────────────────
-function initBackground(container) {
-  if (!container) {
-    container = document.createElement("div");
-    document.body.appendChild(container);
+  resize() {
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+    this.createParticles(); // Recreate particles on resize
   }
 
-  Object.assign(container.style, {
-    position: "fixed",
-    top: "0",
-    left: "0",
-    width: "100%",
-    height: "100%",
-    zIndex: "0",
-    overflow: "hidden",
-    pointerEvents: "none",
-  });
-  while (container.firstChild) container.removeChild(container.firstChild);
+  createParticles() {
+    const particleCount = Math.min(
+      150,
+      Math.floor((window.innerWidth * window.innerHeight) / 15000),
+    );
+    this.particles = [];
 
-  isLightTheme = document.body.classList.contains("light-theme");
+    for (let i = 0; i < particleCount; i++) {
+      this.particles.push({
+        x: Math.random() * this.canvas.width,
+        y: Math.random() * this.canvas.height,
+        radius: Math.random() * 3 + 1.5,
+        alpha: Math.random() * 0.4 + 0.2,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        originalX: Math.random() * this.canvas.width,
+        originalY: Math.random() * this.canvas.height,
+      });
+    }
+  }
 
-  // ── Scene ──
-  scene = new THREE.Scene();
-  scene.background = buildGradientTexture(isLightTheme);
-
-  // ── Camera ──
-  camera = new THREE.PerspectiveCamera(
-    45,
-    container.clientWidth / container.clientHeight,
-    0.1,
-    1000,
-  );
-  camera.position.set(0, 1.5, 14);
-  camera.lookAt(0, 0, 0);
-
-  // ── Renderer ──
-  renderer = new THREE.WebGLRenderer({
-    antialias: false,
-    alpha: false,
-    powerPreference: "high-performance",
-  });
-  renderer.setSize(container.clientWidth, container.clientHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.toneMapping = THREE.ReinhardToneMapping;
-  renderer.toneMappingExposure = 1.05;
-  container.appendChild(renderer.domElement);
-
-  // ── Post-processing ──
-  const renderPass = new RenderPass(scene, camera);
-  const bloomPass = new UnrealBloomPass(
-    new THREE.Vector2(container.clientWidth, container.clientHeight),
-    BLOOM_STRENGTH,
-    0.25,
-    0.12,
-  );
-  bloomPass.threshold = 0.08;
-  bloomPass.strength = BLOOM_STRENGTH;
-  bloomPass.radius = 0.55;
-  effectComposer = new EffectComposer(renderer);
-  effectComposer.addPass(renderPass);
-  effectComposer.addPass(bloomPass);
-
-  // ── Particle data (typed arrays for perf) ──
-  const positions = new Float32Array(PARTICLE_COUNT * 3);
-  const colors = new Float32Array(PARTICLE_COUNT * 3);
-  const sizes = new Float32Array(PARTICLE_COUNT);
-  const originalPositions = new Float32Array(PARTICLE_COUNT * 3);
-  const velX = new Float32Array(PARTICLE_COUNT);
-  const velY = new Float32Array(PARTICLE_COUNT);
-  const velZ = new Float32Array(PARTICLE_COUNT);
-  const driftX = new Float32Array(PARTICLE_COUNT);
-  const driftY = new Float32Array(PARTICLE_COUNT);
-  const driftZ = new Float32Array(PARTICLE_COUNT);
-  const walkX = new Float32Array(PARTICLE_COUNT);
-  const walkY = new Float32Array(PARTICLE_COUNT);
-  const walkZ = new Float32Array(PARTICLE_COUNT);
-
-  for (let i = 0; i < PARTICLE_COUNT; i++) {
-    const x = (Math.random() - 0.5) * 18;
-    const y = (Math.random() - 0.5) * 10;
-    const z = (Math.random() - 0.5) * 22 - 4;
-
-    positions[i * 3] = x;
-    positions[i * 3 + 1] = y;
-    positions[i * 3 + 2] = z;
-    originalPositions[i * 3] = x;
-    originalPositions[i * 3 + 1] = y;
-    originalPositions[i * 3 + 2] = z;
-
-    driftX[i] = (Math.random() - 0.5) * 0.0008;
-    driftY[i] = (Math.random() - 0.5) * 0.0008;
-    driftZ[i] = (Math.random() - 0.5) * 0.0006;
-    walkX[i] = (Math.random() - 0.5) * 0.0004;
-    walkY[i] = (Math.random() - 0.5) * 0.0004;
-    walkZ[i] = (Math.random() - 0.5) * 0.0003;
-
-    let color;
-    if (isLightTheme) {
-      color = pureBlack.clone();
-      color.multiplyScalar(0.85 + Math.random() * 0.15);
+  getParticleColor() {
+    if (this.isLightTheme) {
+      // Dark particles for light theme
+      return `rgba(0, 0, 0, `;
     } else {
-      const rand = Math.random();
-      const yNorm = (y + 5) / 10;
-      if (yNorm > 0.65) {
-        color = (rand < 0.6 ? deepSpaceBlue : steelBlue).clone();
-        if (rand < 0.2) color.lerp(moltenLava, 0.15);
-      } else if (yNorm < 0.3) {
-        if (rand < 0.55) color = moltenLava.clone();
-        else if (rand < 0.85) color = brickRed.clone();
-        else color = papayaWhip.clone();
-        if (rand < 0.2) color.lerp(papayaWhip, 0.25);
-      } else {
-        color = (rand < 0.5 ? brickRed : steelBlue).clone();
-        if (rand < 0.25) color.lerp(moltenLava, 0.3);
-        if (rand > 0.75) color.lerp(papayaWhip, 0.15);
-      }
-      color.multiplyScalar(0.7 + Math.random() * 0.6);
+      // Light particles for dark theme
+      return `rgba(255, 255, 255, `;
     }
-
-    colors[i * 3] = color.r;
-    colors[i * 3 + 1] = color.g;
-    colors[i * 3 + 2] = color.b;
-    sizes[i] = 0.5 + Math.random() * 0.5;
   }
 
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  geo.setAttribute("size", new THREE.BufferAttribute(sizes, 1));
+  drawParticles() {
+    if (!this.ctx) return;
 
-  const twinklePhases = new Float32Array(PARTICLE_COUNT);
-  for (let i = 0; i < PARTICLE_COUNT; i++)
-    twinklePhases[i] = Math.random() * Math.PI * 2;
-  geo.setAttribute("aPhase", new THREE.BufferAttribute(twinklePhases, 1));
+    // Clear canvas with transparency
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-  // ── Shaders ──
-  const vertexShader = `
-    attribute float aPhase;
-    attribute vec3  color;
-    attribute float size;
-    varying vec3  vColor;
-    varying float vAlphaMod;
-    uniform float uTime;
-    void main() {
-      vColor    = color;
-      vAlphaMod = 0.82 + 0.18 * sin(uTime * 0.6 + aPhase);
-      vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-      gl_PointSize = max(size * (220.0 / -mvPos.z), 0.18);
-      gl_Position  = projectionMatrix * mvPos;
+    // Draw connecting lines first (behind particles)
+    this.ctx.beginPath();
+    for (let i = 0; i < this.particles.length; i++) {
+      for (let j = i + 1; j < this.particles.length; j++) {
+        const dx = this.particles[i].x - this.particles[j].x;
+        const dy = this.particles[i].y - this.particles[j].y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < 120) {
+          const opacity = (1 - distance / 120) * 0.15;
+          if (this.isLightTheme) {
+            this.ctx.strokeStyle = `rgba(0, 0, 0, ${opacity})`;
+          } else {
+            this.ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+          }
+          this.ctx.lineWidth = 0.8;
+          this.ctx.beginPath();
+          this.ctx.moveTo(this.particles[i].x, this.particles[i].y);
+          this.ctx.lineTo(this.particles[j].x, this.particles[j].y);
+          this.ctx.stroke();
+        }
+      }
     }
-  `;
 
-  const fragmentShader = `
-    uniform sampler2D uPointTexture;
-    varying vec3  vColor;
-    varying float vAlphaMod;
-    void main() {
-      vec4 tex = texture2D(uPointTexture, gl_PointCoord);
-      gl_FragColor = vec4(vColor, tex.a * vAlphaMod * 0.92);
+    // Draw particles
+    for (let i = 0; i < this.particles.length; i++) {
+      const p = this.particles[i];
+      const gradient = this.ctx.createRadialGradient(
+        p.x,
+        p.y,
+        0,
+        p.x,
+        p.y,
+        p.radius,
+      );
+
+      if (this.isLightTheme) {
+        gradient.addColorStop(0, `rgba(0, 0, 0, ${p.alpha * 0.9})`);
+        gradient.addColorStop(1, `rgba(0, 0, 0, ${p.alpha * 0.3})`);
+      } else {
+        gradient.addColorStop(0, `rgba(255, 255, 255, ${p.alpha * 0.9})`);
+        gradient.addColorStop(1, `rgba(255, 255, 255, ${p.alpha * 0.2})`);
+      }
+
+      this.ctx.beginPath();
+      this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      this.ctx.fillStyle = gradient;
+      this.ctx.fill();
     }
-  `;
+  }
 
-  const mat = new THREE.ShaderMaterial({
-    uniforms: {
-      uPointTexture: { value: buildParticleTexture(isLightTheme) },
-      uTime: { value: 0 },
-    },
-    vertexShader,
-    fragmentShader,
-    transparent: true,
-    depthWrite: true,
-    depthTest: true,
-    blending: THREE.NormalBlending,
-  });
-
-  scene.add(new THREE.Points(geo, mat));
-
-  // ── Mouse listeners ──
-  window.addEventListener("mousemove", (e) => {
-    _mouseNDC.x = (e.clientX / renderer.domElement.clientWidth) * 2 - 1;
-    _mouseNDC.y = -(e.clientY / renderer.domElement.clientHeight) * 2 + 1;
-    _rawMouseWorld.set(_mouseNDC.x, _mouseNDC.y, 0.5).unproject(camera);
-    _dir.subVectors(_rawMouseWorld, camera.position).normalize();
-    const dist = (FIXED_MOUSE_Z - camera.position.z) / _dir.z;
-    _targetMouse.copy(camera.position).addScaledVector(_dir, dist);
-    _targetMouse.x = Math.max(-9, Math.min(9, _targetMouse.x));
-    _targetMouse.y = Math.max(-6, Math.min(6, _targetMouse.y));
-  });
-
-  window.addEventListener("mouseleave", () => _targetMouse.set(999, 999, 999));
-
-  // ── Resize ──
-  window.addEventListener("resize", () => {
-    const w = container.clientWidth,
-      h = container.clientHeight;
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-    renderer.setSize(w, h);
-    effectComposer.setSize(w, h);
-  });
-
-  // ── Animation loop ──
-  const RADIUS_SQ = REPULSION_RADIUS * REPULSION_RADIUS;
-  const posAttr = geo.attributes.position;
-  const posArr = posAttr.array;
-  let cameraDriftT = 0;
-  const initCamPos = camera.position.clone();
-  let lastTS = performance.now();
-
-  function animate() {
-    animationId = requestAnimationFrame(animate);
-
-    const now = performance.now();
-    const delta = Math.min((now - lastTS) / 1000, 0.033) || 0.016;
-    lastTS = now;
-
-    _smoothedMouse.lerp(_targetMouse, MOUSE_SMOOTHING);
-    mat.uniforms.uTime.value = now / 1000;
-
-    const noMouse = _smoothedMouse.x > 100;
-    const mx = _smoothedMouse.x,
-      my = _smoothedMouse.y,
-      mz = _smoothedMouse.z;
-    const d25 = delta * 25,
-      d20 = delta * 20;
-
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const i3 = i * 3;
-      const px = posArr[i3],
-        py = posArr[i3 + 1],
-        pz = posArr[i3 + 2];
-
-      // Random walk
-      walkX[i] = Math.max(
-        -0.006,
-        Math.min(0.006, walkX[i] + (Math.random() - 0.5) * 0.00025),
-      );
-      walkY[i] = Math.max(
-        -0.006,
-        Math.min(0.006, walkY[i] + (Math.random() - 0.5) * 0.00025),
-      );
-      walkZ[i] = Math.max(
-        -0.005,
-        Math.min(0.005, walkZ[i] + (Math.random() - 0.5) * 0.0002),
-      );
-
-      let ax = driftX[i] + walkX[i] * 0.3;
-      let ay = driftY[i] + walkY[i] * 0.3;
-      let az = driftZ[i] + walkZ[i] * 0.3;
+  updateParticles() {
+    for (let i = 0; i < this.particles.length; i++) {
+      const p = this.particles[i];
 
       // Mouse repulsion
-      if (!noMouse) {
-        const dx = px - mx,
-          dy = py - my,
-          dz = pz - mz;
-        const distSq = dx * dx + dy * dy + dz * dz * Z_INFLUENCE;
-        if (distSq < RADIUS_SQ && distSq > 0.001) {
-          const t = 1 - Math.sqrt(distSq) / REPULSION_RADIUS;
-          const f = (t * t * REPULSION_STRENGTH) / Math.sqrt(distSq);
-          ax += dx * f * 1.2;
-          ay += dy * f * 1.2;
-          az += dz * f * Z_INFLUENCE * 0.8;
+      if (this.mouseX && this.mouseY) {
+        const dx = p.x - this.mouseX;
+        const dy = p.y - this.mouseY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const minDistance = 100;
+
+        if (distance < minDistance) {
+          const angle = Math.atan2(dy, dx);
+          const force = ((minDistance - distance) / minDistance) * 2;
+          p.x += Math.cos(angle) * force;
+          p.y += Math.sin(angle) * force;
         }
       }
 
-      // Velocity + damping
-      velX[i] = (velX[i] + ax * d25) * 0.96;
-      velY[i] = (velY[i] + ay * d25) * 0.96;
-      velZ[i] = (velZ[i] + az * d25) * 0.96;
+      // Move particles
+      p.x += p.vx;
+      p.y += p.vy;
 
-      let npx = px + velX[i] * d20;
-      let npy = py + velY[i] * d20;
-      let npz = pz + velZ[i] * d20;
+      // Return to original position slowly
+      p.x += (p.originalX - p.x) * 0.01;
+      p.y += (p.originalY - p.y) * 0.01;
 
-      // Spring return
-      const ox = originalPositions[i3],
-        oy = originalPositions[i3 + 1],
-        oz = originalPositions[i3 + 2];
-      velX[i] +=
-        (-(npx - ox) * RETURN_STRENGTH + velX[i] * RETURN_OVERSHOOT) * d25;
-      velY[i] +=
-        (-(npy - oy) * RETURN_STRENGTH + velY[i] * RETURN_OVERSHOOT) * d25;
-      velZ[i] +=
-        (-(npz - oz) * RETURN_STRENGTH + velZ[i] * RETURN_OVERSHOOT) * d25;
+      // Wrap around edges with slight randomness
+      if (p.x < -50) p.x = this.canvas.width + 50;
+      if (p.x > this.canvas.width + 50) p.x = -50;
+      if (p.y < -50) p.y = this.canvas.height + 50;
+      if (p.y > this.canvas.height + 50) p.y = -50;
 
-      npx = px + velX[i] * d20;
-      npy = py + velY[i] * d20;
-      npz = pz + velZ[i] * d20;
-
-      // Boundary bounce
-      if (npx < -9.5) {
-        npx = -9.47;
-        velX[i] *= -0.3;
-      }
-      if (npx > 9.5) {
-        npx = 9.47;
-        velX[i] *= -0.3;
-      }
-      if (npy < -6) {
-        npy = -5.97;
-        velY[i] *= -0.3;
-      }
-      if (npy > 6) {
-        npy = 5.97;
-        velY[i] *= -0.3;
-      }
-      if (npz < -16) {
-        npz = -15.97;
-        velZ[i] *= -0.3;
-      }
-      if (npz > 8) {
-        npz = 7.97;
-        velZ[i] *= -0.3;
-      }
-
-      posArr[i3] = npx;
-      posArr[i3 + 1] = npy;
-      posArr[i3 + 2] = npz;
-
-      if (Math.random() < 0.0005) {
-        originalPositions[i3] = originalPositions[i3] * 0.999 + npx * 0.001;
-        originalPositions[i3 + 1] =
-          originalPositions[i3 + 1] * 0.999 + npy * 0.001;
-        originalPositions[i3 + 2] =
-          originalPositions[i3 + 2] * 0.999 + npz * 0.001;
+      // Occasional direction change
+      if (Math.random() < 0.005) {
+        p.vx += (Math.random() - 0.5) * 0.2;
+        p.vy += (Math.random() - 0.5) * 0.2;
+        // Limit velocity
+        p.vx = Math.min(Math.max(p.vx, -0.8), 0.8);
+        p.vy = Math.min(Math.max(p.vy, -0.8), 0.8);
       }
     }
-    posAttr.needsUpdate = true;
-
-    // Camera drift
-    cameraDriftT += delta * 0.045;
-    camera.position.x = initCamPos.x + Math.sin(cameraDriftT * 0.09) * 0.18;
-    camera.position.y =
-      initCamPos.y + Math.sin(cameraDriftT * 0.15) * 0.05 + 0.03;
-    camera.position.z =
-      initCamPos.z + Math.sin(cameraDriftT * 0.055) * 0.22 - 0.08;
-    camera.lookAt(0, 0.8, 0);
-
-    effectComposer.render();
   }
 
-  animate();
-  return renderer;
-}
-
-// ─── Theme switch: full reinit ─────────────────────────────────────────────
-function updateParticleTheme() {
-  const container = document.getElementById("particle-container");
-  if (!container) return;
-
-  if (animationId) {
-    cancelAnimationFrame(animationId);
-    animationId = null;
-  }
-  if (renderer) {
-    renderer.dispose();
-    renderer = null;
+  updateTheme() {
+    this.isLightTheme = document.body.classList.contains("light-theme");
+    // Particles will update colors on next draw
   }
 
-  while (container.firstChild) container.removeChild(container.firstChild);
-  initBackground(container);
-}
+  observeThemeChanges() {
+    const observer = new MutationObserver(() => {
+      this.updateTheme();
+    });
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+  }
 
-// ─── Watch body class ─────────────────────────────────────────────────────
-const themeObserver = new MutationObserver((mutations) => {
-  for (const m of mutations) {
-    if (m.attributeName === "class") {
-      updateParticleTheme();
-      break;
+  animate() {
+    this.updateParticles();
+    this.drawParticles();
+    this.animationId = requestAnimationFrame(() => this.animate());
+  }
+
+  destroy() {
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+    }
+    if (this.canvas && this.canvas.parentNode) {
+      this.canvas.parentNode.removeChild(this.canvas);
     }
   }
-});
-
-// ─── Boot ─────────────────────────────────────────────────────────────────
-function boot() {
-  const container = document.getElementById("particle-container");
-  if (container) {
-    initBackground(container);
-    themeObserver.observe(document.body, { attributes: true });
-  }
 }
+
+// Initialize
+const particleBg = new ParticleBackground();
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", boot);
+  document.addEventListener("DOMContentLoaded", () => {
+    particleBg.init();
+  });
 } else {
-  boot();
+  particleBg.init();
 }
 
-export { initBackground, updateParticleTheme };
+export default particleBg;

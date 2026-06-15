@@ -5,12 +5,12 @@ endblock %} {% block page_title %}{{ ann.title }}{% endblock %} {% block content
 <div class="detail-header">
     <div class="ann-badges">
         <span class="badge b-{{ ann.priority }}">
-            {% if ann.priority=='urgent' %}<i class="fas fa-bolt"></i> عاجل {%
-            elif ann.priority=='high' %}<i class="fas fa-arrow-up"></i> مهم {%
-            elif ann.priority=='low' %}<i class="fas fa-arrow-down"></i> منخفض
+            {% if ann.priority == 'urgent' %}<i class="fas fa-bolt"></i> عاجل {%
+            elif ann.priority == 'high' %}<i class="fas fa-arrow-up"></i> مهم {%
+            elif ann.priority == 'low' %}<i class="fas fa-arrow-down"></i> منخفض
             {% else %}<i class="fas fa-circle"></i> عادي{% endif %}
         </span>
-        {% if session.role=='superadmin' %}
+        {% if session.role == 'superadmin' %}
         <span class="badge b-dept">{{ ann.dept_name }}</span>
         {% endif %} {% if ann.is_pinned %}
         <span class="pin-badge"><i class="fas fa-thumbtack"></i> مثبت</span>
@@ -26,27 +26,51 @@ endblock %} {% block page_title %}{{ ann.title }}{% endblock %} {% block content
             ann.created_at[11:16] }}</span
         >
         <span><i class="fas fa-comment"></i> {{ comments|length }} تعليق</span>
+        <span
+            class="reactions-count"
+            onclick="showReactionsModal()"
+            style="cursor: pointer"
+        >
+            <i class="fas fa-thumbs-up"></i>
+            <span id="reactionCountDisplay">{{ reaction_count }}</span> تفاعل
+        </span>
     </div>
 </div>
 
 <div class="detail-actions">
-    {% if session.role in ['manager','superadmin'] or session.user_id ==
+    {% if session.role in ['manager', 'superadmin'] or session.user_id ==
     ann.user_id %}
     <a
         href="{{ url_for('announcements.edit', ann_id=ann.id) }}"
-        class="btn btn-primary btn-sm"
+        class="btn btn-primary"
     >
         <i class="fas fa-edit"></i> تعديل التبليغ
     </a>
-    {% endif %} {% if session.role in ['manager','superadmin'] %}
+    {% endif %} {% if session.role in ['manager', 'superadmin'] %}
+    <form
+        method="POST"
+        action="{{ url_for('announcements.toggle_pin', ann_id=ann.id) }}"
+        class="inline-form"
+    >
+        {% if ann.is_pinned %}
+        <button class="btn btn-unpin pin-btn">
+            <i class="fas fa-thumbtack fa-rotate-90"></i> إلغاء التثبيت
+        </button>
+        {% else %}
+        <button class="btn btn-primary pin-btn">
+            <i class="fas fa-thumbtack"></i> تثبيت التبليغ
+        </button>
+        {% endif %}
+    </form>
+
     <form
         method="POST"
         action="{{ url_for('announcements.delete', ann_id=ann.id) }}"
         data-confirm="هل أنت متأكد من حذف هذا التبليغ؟"
         class="inline-form"
-        onsubmit="return confirm('هل أنت متأكد من حذف هذا التبليغ؟');"
+        onsubmit="return confirm('هل أنت متأكد من حذف هذا التبليغ？');"
     >
-        <button class="btn btn-danger btn-sm">
+        <button class="btn btn-danger">
             <i class="fas fa-trash"></i> حذف التبليغ
         </button>
     </form>
@@ -55,11 +79,12 @@ endblock %} {% block page_title %}{{ ann.title }}{% endblock %} {% block content
     <button
         id="reactBtn"
         onclick="toggleReaction({{ ann.id }})"
-        class="btn btn-sm {{ 'btn-accent' if user_reacted else 'btn-ghost' }}"
+        class="btn {{ 'btn-accent' if user_reacted else 'btn-ghost' }}"
     >
         <i class="fas fa-thumbs-up"></i>
-        <span id="reactLabel">{{ 'إلغاء التفاعل' if user_reacted else 'تفاعل' }}</span>
-        (<span id="reactCount">{{ reaction_count }}</span>)
+        <span id="reactLabel"
+            >{{ 'إلغاء التفاعل' if user_reacted else 'تفاعل' }}</span
+        >
     </button>
 </div>
 
@@ -96,8 +121,8 @@ endblock %} {% block page_title %}{{ ann.title }}{% endblock %} {% block content
                 </div>
             </div>
             <div class="c-body">{{ comment.body }}</div>
-            {% if session.role in ['manager','superadmin'] or session.user_id ==
-            comment.user_id %}
+            {% if session.role in ['manager', 'superadmin'] or session.user_id
+            == comment.user_id %}
             <div class="comment-actions">
                 <form
                     method="POST"
@@ -147,7 +172,317 @@ endblock %} {% block page_title %}{{ ann.title }}{% endblock %} {% block content
     </div>
 </div>
 
+<!-- Reactions Modal -->
+<div id="reactionsModal" class="reactions-modal" style="display: none">
+    <div class="reactions-modal-content">
+        <div class="reactions-modal-header">
+            <h3><i class="fas fa-thumbs-up"></i> المتفاعلون مع هذا التبليغ</h3>
+            <button
+                class="reactions-modal-close"
+                onclick="closeReactionsModal()"
+            >
+                &times;
+            </button>
+        </div>
+        <div class="reactions-modal-body">
+            <div id="reactionsList" class="reactions-list">
+                <div
+                    class="loading-reactions"
+                    style="text-align: center; padding: 32px"
+                >
+                    <i
+                        class="fas fa-spinner fa-spin"
+                        style="font-size: 24px"
+                    ></i>
+                    <p style="margin-top: 12px">جاري التحميل...</p>
+                </div>
+            </div>
+        </div>
+        <div class="reactions-modal-footer">
+            <button class="btn btn-ghost" onclick="closeReactionsModal()">
+                إغلاق
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Fix button sizes to be consistent */
+    .detail-actions {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .detail-actions .btn,
+    .detail-actions .btn-primary,
+    .detail-actions .btn-danger,
+    .detail-actions .btn-accent,
+    .detail-actions .btn-ghost,
+    .detail-actions .btn-unpin {
+        padding: 8px 18px;
+        font-size: 12.5px;
+        font-weight: 700;
+        border-radius: var(--r-sm);
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        white-space: nowrap;
+    }
+
+    .detail-actions .btn i,
+    .detail-actions .btn-primary i,
+    .detail-actions .btn-danger i,
+    .detail-actions .btn-accent i,
+    .detail-actions .btn-ghost i,
+    .detail-actions .btn-unpin i {
+        font-size: 12px;
+    }
+
+    .detail-actions .inline-form {
+        display: inline-flex;
+    }
+
+    .detail-actions .inline-form .btn {
+        margin: 0;
+    }
+
+    .detail-actions form button.btn {
+        padding: 8px 18px;
+        font-size: 12.5px;
+    }
+
+    /* Unpin button styling */
+    .btn-unpin {
+        background: var(--bg-hover);
+        border: 1px solid var(--border);
+        color: var(--text-2);
+    }
+
+    .btn-unpin:hover {
+        background: var(--red-dim);
+        border-color: var(--red);
+        color: var(--red);
+    }
+
+    .pin-btn {
+        transition: all 0.3s ease;
+    }
+
+    .pin-btn i {
+        transition: transform 0.3s ease;
+    }
+
+    .pin-btn:hover i {
+        transform: rotate(-15deg) scale(1.1);
+    }
+
+    /* Comment action button */
+    .comment-actions {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+        text-align: left;
+    }
+
+    .btn-ghost-comment {
+        background: none;
+        border: none;
+        color: var(--text-3);
+        font-size: 11px;
+        cursor: pointer;
+        transition: var(--t);
+        padding: 4px 8px;
+        border-radius: var(--r-sm);
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .btn-ghost-comment:hover {
+        color: var(--text);
+        background: var(--bg-hover);
+    }
+
+    /* Reactions styling */
+    .reactions-count {
+        cursor: pointer;
+        transition: var(--t);
+        padding: 2px 6px;
+        border-radius: var(--r-sm);
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .reactions-count:hover {
+        background: var(--bg-hover);
+        color: var(--accent);
+    }
+
+    /* Reactions Modal */
+    .reactions-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(8px);
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .reactions-modal-content {
+        background: var(--bg-card-2);
+        border-radius: var(--r-lg);
+        width: 90%;
+        max-width: 500px;
+        max-height: 80vh;
+        overflow: hidden;
+        border: 1px solid var(--border-2);
+        box-shadow: var(--sh-lg);
+    }
+
+    .reactions-modal-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .reactions-modal-header h3 {
+        font-size: 16px;
+        margin: 0;
+        color: var(--text-white);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .reactions-modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: var(--text-3);
+        transition: var(--t);
+    }
+
+    .reactions-modal-close:hover {
+        color: var(--accent);
+    }
+
+    .reactions-modal-body {
+        padding: 20px;
+        overflow-y: auto;
+        max-height: calc(80vh - 120px);
+    }
+
+    .reactions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .reaction-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        background: var(--bg-hover);
+        border-radius: var(--r);
+        transition: var(--t);
+    }
+
+    .reaction-item:hover {
+        background: var(--bg-3);
+        transform: translateX(-3px);
+    }
+
+    .reaction-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--r);
+        background: var(--accent-gradient);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+
+    .reaction-avatar i,
+    .reaction-avatar span {
+        color: var(--bg-sidebar) !important;
+    }
+
+    body.light-theme .reaction-avatar span,
+    body.light-theme .reaction-avatar i {
+        color: #ffffff !important;
+    }
+
+    .reaction-info {
+        flex: 1;
+    }
+
+    .reaction-name {
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--text-white);
+    }
+
+    .reaction-dept {
+        font-size: 10px;
+        color: var(--text-3);
+        margin-top: 2px;
+    }
+
+    .reaction-role {
+        flex-shrink: 0;
+    }
+
+    .reactions-modal-footer {
+        padding: 16px 20px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+        .detail-actions {
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .detail-actions .btn,
+        .detail-actions .btn-primary,
+        .detail-actions .btn-danger,
+        .detail-actions .btn-accent,
+        .detail-actions .btn-ghost,
+        .detail-actions .btn-unpin,
+        .detail-actions form button.btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .detail-actions .inline-form {
+            width: 100%;
+        }
+
+        .reactions-modal-content {
+            width: 95%;
+        }
+    }
+</style>
+
 <script>
+    let announcementId = {{ ann.id }};
+
     function toggleReaction(annId) {
         fetch(`/announcements/${annId}/react`, { method: "POST" })
             .then((res) => res.json())
@@ -155,7 +490,11 @@ endblock %} {% block page_title %}{{ ann.title }}{% endblock %} {% block content
                 if (!data.success) return;
                 const btn = document.getElementById("reactBtn");
                 const label = document.getElementById("reactLabel");
-                document.getElementById("reactCount").textContent = data.count;
+                const displaySpan = document.getElementById("reactionCountDisplay");
+
+                // Update the count display in the meta section only
+                if (displaySpan) displaySpan.textContent = data.count;
+
                 if (data.liked) {
                     btn.classList.remove("btn-ghost");
                     btn.classList.add("btn-accent");
@@ -168,6 +507,91 @@ endblock %} {% block page_title %}{{ ann.title }}{% endblock %} {% block content
             })
             .catch((err) => console.error("Error:", err));
     }
+
+    async function showReactionsModal() {
+        const modal = document.getElementById('reactionsModal');
+        const reactionsList = document.getElementById('reactionsList');
+
+        if (!modal) return;
+
+        reactionsList.innerHTML = '<div class="loading-reactions" style="text-align: center; padding: 32px;"><i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i><p style="margin-top: 12px;">جاري التحميل...</p></div>';
+        modal.style.display = 'flex';
+
+        try {
+            const res = await fetch(`/announcements/${announcementId}/reactions`);
+            const data = await res.json();
+
+            if (data.success && data.reactions && data.reactions.length > 0) {
+                let html = '';
+                data.reactions.forEach(reaction => {
+                    const roleBadge = getRoleBadge(reaction.role);
+                    html += `
+                        <div class="reaction-item">
+                            <div class="reaction-avatar">
+                                ${reaction.full_name ? reaction.full_name.charAt(0) : '<i class="fas fa-user"></i>'}
+                            </div>
+                            <div class="reaction-info">
+                                <div class="reaction-name">${escapeHtml(reaction.full_name)}</div>
+                                <div class="reaction-dept">${escapeHtml(reaction.dept_name || '—')}</div>
+                            </div>
+                            <div class="reaction-role">
+                                <span class="badge ${roleBadge}">${getRoleName(reaction.role)}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                reactionsList.innerHTML = html;
+            } else {
+                reactionsList.innerHTML = '<div style="text-align: center; padding: 48px; color: var(--text-3);"><i class="fas fa-thumbs-up" style="font-size: 48px; opacity: 0.3; display: block; margin-bottom: 12px;"></i><p>لا يوجد متفاعلون بعد</p><p style="font-size: 11px; margin-top: 8px;">كن أول من يتفاعل مع هذا التبليغ!</p></div>';
+            }
+        } catch (err) {
+            console.error('Error loading reactions:', err);
+            reactionsList.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--red);"><i class="fas fa-exclamation-circle"></i><p style="margin-top: 12px;">حدث خطأ في تحميل المتفاعلين</p></div>';
+        }
+    }
+
+    function closeReactionsModal() {
+        const modal = document.getElementById('reactionsModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function getRoleBadge(role) {
+        switch(role) {
+            case 'superadmin': return 'b-superadmin';
+            case 'manager': return 'b-manager';
+            default: return 'b-employee';
+        }
+    }
+
+    function getRoleName(role) {
+        switch(role) {
+            case 'superadmin': return 'مدير النظام';
+            case 'manager': return 'مدير قسم';
+            default: return 'موظف';
+        }
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Close modal on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeReactionsModal();
+        }
+    });
+
+    // Close modal when clicking outside
+    document.addEventListener('click', function(e) {
+        const modal = document.getElementById('reactionsModal');
+        if (modal && e.target === modal) {
+            closeReactionsModal();
+        }
+    });
 </script>
 
 {% endblock %}

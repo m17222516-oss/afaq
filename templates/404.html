@@ -1,0 +1,20 @@
+{% extends "base.html" %} {% block title %}404 - الصفحة غير موجودة{% endblock %}
+{% block page_title %}خطأ 404{% endblock %} {% block content %}
+<div class="card">
+    <div class="empty">
+        <i
+            class="fas fa-exclamation-triangle"
+            style="font-size: 64px; color: var(--orange)"
+        ></i>
+        <h3>عذراً! الصفحة غير موجودة</h3>
+        <p>الصفحة التي تبحث عنها غير متوفرة أو تم نقلها</p>
+        <a
+            href="{{ url_for('dashboard.index') }}"
+            class="btn btn-primary"
+            style="margin-top: 16px"
+        >
+            <i class="fas fa-home"></i> العودة للرئيسية
+        </a>
+    </div>
+</div>
+{% endblock %}

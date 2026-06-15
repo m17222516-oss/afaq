@@ -7,8 +7,7 @@
     <div class="card">
         <div class="card-head">
             <h2>
-                <i class="fas fa-edit" style="color: var(--accent)"></i> تعديل
-                التبليغ
+                <i class="fas fa-edit" style="color: var(--accent)"></i> تعديل التبليغ
             </h2>
         </div>
         <div class="card-body">
@@ -22,7 +21,7 @@
                         id="titleInput"
                         value="{{ ann.title }}"
                         required
-                        placeholder="عنوان التبليغ"
+                        placeholder="أدخل عنواناً واضحاً ومختصراً"
                     />
                 </div>
 
@@ -33,13 +32,11 @@
                             name="department_id"
                             class="form-control"
                             required
+                            id="departmentSelect"
                             {% if session.role != "superadmin" %}disabled{% endif %}
                         >
                             {% for d in departments %}
-                            <option
-                                value="{{ d.id }}"
-                                {% if d.id == ann.department_id %}selected{% endif %}
-                            >
+                            <option value="{{ d.id }}" {% if d.id == ann.department_id %}selected{% endif %}>
                                 {{ d.name_ar }}
                             </option>
                             {% endfor %}
@@ -56,8 +53,8 @@
                         <label class="form-label">الأولوية</label>
                         <select name="priority" class="form-control" id="prioritySelect">
                             <option value="normal" {% if ann.priority == "normal" %}selected{% endif %}>● عادي</option>
-                            <option value="low"    {% if ann.priority == "low"    %}selected{% endif %}>↓ منخفض</option>
-                            <option value="high"   {% if ann.priority == "high"   %}selected{% endif %}>↑ مهم</option>
+                            <option value="low" {% if ann.priority == "low" %}selected{% endif %}>↓ منخفض</option>
+                            <option value="high" {% if ann.priority == "high" %}selected{% endif %}>↑ مهم</option>
                             <option value="urgent" {% if ann.priority == "urgent" %}selected{% endif %}>⚡ عاجل</option>
                         </select>
                     </div>
@@ -67,95 +64,106 @@
                 <div class="form-group">
                     <label class="form-label">نص التبليغ <span class="req">*</span></label>
 
-                    <!-- Toolbar -->
                     <div class="editor-toolbar">
-                        <button type="button" class="toolbar-btn" data-command="bold" title="غامق"><i class="fas fa-bold"></i></button>
-                        <button type="button" class="toolbar-btn" data-command="italic" title="مائل"><i class="fas fa-italic"></i></button>
-                        <button type="button" class="toolbar-btn" data-command="underline" title="تسطير"><i class="fas fa-underline"></i></button>
-                        <button type="button" class="toolbar-btn" data-command="strikeThrough" title="يتوسطه خط"><i class="fas fa-strikethrough"></i></button>
+                        <button type="button" class="toolbar-btn" data-command="bold" title="غامق">
+                            <i class="fas fa-bold"></i>
+                        </button>
+                        <button type="button" class="toolbar-btn" data-command="italic" title="مائل">
+                            <i class="fas fa-italic"></i>
+                        </button>
+                        <button type="button" class="toolbar-btn" data-command="underline" title="تسطير">
+                            <i class="fas fa-underline"></i>
+                        </button>
+                        <button type="button" class="toolbar-btn" data-command="strikeThrough" title="يتوسطه خط">
+                            <i class="fas fa-strikethrough"></i>
+                        </button>
                         <span class="toolbar-divider"></span>
 
-                        <select class="toolbar-select" data-command="fontSize" title="حجم الخط">
-                            <option value="1">صغير جداً</option>
-                            <option value="2">صغير</option>
-                            <option value="3" selected>عادي</option>
-                            <option value="4">متوسط</option>
-                            <option value="5">كبير</option>
-                            <option value="6">كبير جداً</option>
-                            <option value="7">ضخم</option>
-                        </select>
-
-                        <select class="toolbar-select" data-command="fontName" title="نوع الخط">
-                            <option value="Arial">Arial</option>
-                            <option value="'Tajawal', sans-serif" selected>Tajawal</option>
-                            <option value="'Times New Roman'">Times New Roman</option>
-                            <option value="'Courier New'">Courier New</option>
-                            <option value="Georgia">Georgia</option>
-                            <option value="Verdana">Verdana</option>
+                        <select class="toolbar-select" data-command="formatBlock">
+                            <option value="p">نص عادي</option>
+                            <option value="h1">عنوان رئيسي 1</option>
+                            <option value="h2">عنوان رئيسي 2</option>
+                            <option value="h3">عنوان رئيسي 3</option>
                         </select>
 
                         <span class="toolbar-divider"></span>
 
-                        <button type="button" class="toolbar-btn" data-command="justifyRight" title="محاذاة لليمين"><i class="fas fa-align-right"></i></button>
-                        <button type="button" class="toolbar-btn" data-command="justifyCenter" title="محاذاة للوسط"><i class="fas fa-align-center"></i></button>
-                        <button type="button" class="toolbar-btn" data-command="justifyLeft" title="محاذاة لليسار"><i class="fas fa-align-left"></i></button>
-                        <button type="button" class="toolbar-btn" data-command="justifyFull" title="محاذاة كاملة"><i class="fas fa-align-justify"></i></button>
+                        <button type="button" class="toolbar-btn" data-command="insertUnorderedList" title="قائمة نقطية">
+                            <i class="fas fa-list-ul"></i>
+                        </button>
+                        <button type="button" class="toolbar-btn" data-command="insertOrderedList" title="قائمة رقمية">
+                            <i class="fas fa-list-ol"></i>
+                        </button>
 
                         <span class="toolbar-divider"></span>
 
-                        <button type="button" class="toolbar-btn" data-command="insertUnorderedList" title="قائمة نقطية"><i class="fas fa-list-ul"></i></button>
-                        <button type="button" class="toolbar-btn" data-command="insertOrderedList" title="قائمة رقمية"><i class="fas fa-list-ol"></i></button>
-                        <button type="button" class="toolbar-btn" data-command="outdent" title="تقليص المسافة"><i class="fas fa-outdent"></i></button>
-                        <button type="button" class="toolbar-btn" data-command="indent" title="زيادة المسافة"><i class="fas fa-indent"></i></button>
+                        <button type="button" class="toolbar-btn" data-command="justifyLeft" title="محاذاة لليسار">
+                            <i class="fas fa-align-left"></i>
+                        </button>
+                        <button type="button" class="toolbar-btn" data-command="justifyCenter" title="محاذاة للوسط">
+                            <i class="fas fa-align-center"></i>
+                        </button>
+                        <button type="button" class="toolbar-btn" data-command="justifyRight" title="محاذاة لليمين">
+                            <i class="fas fa-align-right"></i>
+                        </button>
+                        <button type="button" class="toolbar-btn" data-command="justifyFull" title="محاذاة كاملة">
+                            <i class="fas fa-align-justify"></i>
+                        </button>
 
                         <span class="toolbar-divider"></span>
 
                         <input type="color" class="toolbar-color" data-command="foreColor" title="لون النص" value="#000000" />
-                        <input type="color" class="toolbar-color" data-command="backColor" title="لون الخلفية" value="#ffffff" />
+                        <input type="color" class="toolbar-color" data-command="hiliteColor" title="لون الخلفية" value="#ffff00" />
 
                         <span class="toolbar-divider"></span>
 
-                        <button type="button" class="toolbar-btn" data-command="createLink" title="إضافة رابط"><i class="fas fa-link"></i></button>
-                        <button type="button" class="toolbar-btn" data-command="unlink" title="إزالة الرابط"><i class="fas fa-unlink"></i></button>
+                        <button type="button" class="toolbar-btn" data-command="createLink" title="إضافة رابط">
+                            <i class="fas fa-link"></i>
+                        </button>
+                        <button type="button" class="toolbar-btn" data-command="unlink" title="إزالة الرابط">
+                            <i class="fas fa-unlink"></i>
+                        </button>
 
-                        <label class="toolbar-btn" style="cursor: pointer">
+                        <span class="toolbar-divider"></span>
+
+                        <label class="toolbar-btn toolbar-file-label" title="إدراج صورة">
                             <i class="fas fa-image"></i>
-                            <span>إدراج صورة</span>
-                            <input type="file" id="inlineImageUpload" accept="image/jpeg,image/png,image/gif,image/webp" style="display: none" />
+                            <span>صورة</span>
+                            <input type="file" id="imageUpload" accept="image/jpeg,image/png,image/gif,image/webp" style="display: none" />
                         </label>
 
                         <span class="toolbar-divider"></span>
 
-                        <button type="button" class="toolbar-btn" data-command="undo" title="تراجع"><i class="fas fa-undo"></i></button>
-                        <button type="button" class="toolbar-btn" data-command="redo" title="إعادة"><i class="fas fa-redo"></i></button>
+                        <button type="button" class="toolbar-btn" data-command="undo" title="تراجع">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                        <button type="button" class="toolbar-btn" data-command="redo" title="إعادة">
+                            <i class="fas fa-redo"></i>
+                        </button>
 
                         <span class="toolbar-divider"></span>
 
-                        <button type="button" class="toolbar-btn" data-command="removeFormat" title="إزالة التنسيق"><i class="fas fa-eraser"></i></button>
-                        <button type="button" class="toolbar-btn" data-command="showHTML" title="عرض/إخفاء HTML"><i class="fas fa-code"></i></button>
+                        <button type="button" class="toolbar-btn" data-command="removeFormat" title="إزالة التنسيق">
+                            <i class="fas fa-eraser"></i>
+                        </button>
                     </div>
 
                     <!-- Editor Content -->
-                    <div id="editor" class="rich-editor" contenteditable="true">
+                    <div id="editor" class="rich-editor" contenteditable="true" data-placeholder="اكتب نص التبليغ هنا...">
                         {{ ann.body|safe }}
                     </div>
                     <textarea name="body" id="bodyInput" style="display: none">{{ ann.body|safe }}</textarea>
                 </div>
 
                 <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 9px; cursor: pointer; font-size: 13px; color: var(--text-2);">
-                        <input
-                            type="checkbox"
-                            name="is_pinned"
-                            style="width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer;"
-                            {% if ann.is_pinned %}checked{% endif %}
-                        />
-                        <i class="fas fa-thumbtack" style="color: var(--accent)"></i>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="is_pinned" {% if ann.is_pinned %}checked{% endif %} />
+                        <i class="fas fa-thumbtack"></i>
                         تثبيت التبليغ في الأعلى
                     </label>
                 </div>
 
-                <div style="display: flex; gap: 10px; margin-top: 8px">
+                <div class="form-actions">
                     <button type="submit" class="btn btn-accent" id="submitBtn">
                         <i class="fas fa-save"></i> حفظ التعديلات
                     </button>
@@ -165,49 +173,6 @@
                     <a href="{{ url_for('announcements.detail', ann_id=ann.id) }}" class="btn btn-ghost">إلغاء</a>
                 </div>
             </form>
-        </div>
-    </div>
-</div>
-
-<!-- Image Size Modal -->
-<div id="imageSizeModal" class="image-modal" style="display: none">
-    <div class="image-modal-content">
-        <div class="image-modal-header">
-            <h3><i class="fas fa-image"></i> تعديل حجم الصورة</h3>
-            <button class="image-modal-close" onclick="closeImageModal()">&times;</button>
-        </div>
-        <div class="image-modal-body">
-            <div class="image-preview-container">
-                <img id="modalPreviewImage" alt="Preview" />
-            </div>
-            <div class="size-controls">
-                <div class="size-control">
-                    <label>العرض (px)</label>
-                    <input type="number" id="imageWidth" class="form-control" value="500" min="50" max="1200" step="10" />
-                </div>
-                <div class="size-control">
-                    <label>الارتفاع (px)</label>
-                    <input type="number" id="imageHeight" class="form-control" value="auto" placeholder="تلقائي" step="10" />
-                </div>
-                <div class="size-control">
-                    <label>
-                        <input type="checkbox" id="keepAspectRatio" checked />
-                        الحفاظ على النسبة
-                    </label>
-                </div>
-                <div class="size-presets">
-                    <label>حجم مسبق:</label>
-                    <button type="button" class="btn-sm btn-ghost" onclick="setPresetSize(200)">صغير (200px)</button>
-                    <button type="button" class="btn-sm btn-ghost" onclick="setPresetSize(400)">متوسط (400px)</button>
-                    <button type="button" class="btn-sm btn-ghost" onclick="setPresetSize(600)">كبير (600px)</button>
-                    <button type="button" class="btn-sm btn-ghost" onclick="setPresetSize(800)">كامل (800px)</button>
-                    <button type="button" class="btn-sm btn-ghost" onclick="setOriginalSize()">الحجم الأصلي</button>
-                </div>
-            </div>
-        </div>
-        <div class="image-modal-footer">
-            <button type="button" class="btn btn-accent" onclick="insertImageWithSize()">إدراج الصورة</button>
-            <button type="button" class="btn btn-ghost" onclick="closeImageModal()">إلغاء</button>
         </div>
     </div>
 </div>
@@ -223,12 +188,13 @@
             <div class="preview-badge-area"></div>
             <h2 class="preview-title"></h2>
             <div class="preview-meta"></div>
-            <div class="preview-content"></div>
+            <div class="preview-content" id="previewContent"></div>
         </div>
     </div>
 </div>
 
 <style>
+    /* Editor toolbar styles */
     .editor-toolbar {
         background: var(--bg-card);
         border: 1px solid var(--border);
@@ -275,7 +241,7 @@
     }
 
     .toolbar-color {
-        width: 32px;
+        width: 36px;
         height: 32px;
         border: 1px solid var(--border);
         border-radius: var(--r-sm);
@@ -313,65 +279,93 @@
         box-shadow: 0 0 0 2px var(--accent-dim);
     }
 
+    .rich-editor:empty:before {
+        content: attr(data-placeholder);
+        color: var(--text-3);
+        opacity: 0.6;
+    }
+
     .rich-editor img {
         max-width: 100%;
         height: auto;
         border-radius: var(--r-sm);
         margin: 10px 0;
         cursor: pointer;
-        border: 2px solid transparent;
+        display: block;
     }
 
-    .rich-editor img:hover {
-        border-color: var(--accent);
-        box-shadow: 0 0 8px var(--accent-glow);
+    .rich-editor h1 {
+        font-size: 28px;
+        font-weight: 700;
+        margin: 16px 0 8px 0;
     }
 
-    .image-modal,
-    .preview-modal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.8);
-        backdrop-filter: blur(8px);
+    .rich-editor h2 {
+        font-size: 24px;
+        font-weight: 700;
+        margin: 14px 0 6px 0;
     }
 
-    .image-modal {
-        z-index: 1001;
+    .rich-editor h3 {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 12px 0 4px 0;
+    }
+
+    .rich-editor ul,
+    .rich-editor ol {
+        padding-right: 20px;
+        margin: 10px 0;
+    }
+
+    .checkbox-label {
         display: flex;
         align-items: center;
-        justify-content: center;
+        gap: 9px;
+        cursor: pointer;
+        font-size: 13px;
+        color: var(--text-2);
+    }
+
+    .checkbox-label input {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--accent);
+        cursor: pointer;
+    }
+
+    .checkbox-label i {
+        color: var(--accent);
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 8px;
     }
 
     .preview-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(8px);
         z-index: 1000;
         display: flex;
         align-items: center;
         justify-content: center;
     }
 
-    .image-modal-content,
     .preview-modal-content {
-        background: var(--bg-card);
+        background: var(--bg-card-2);
         border-radius: var(--r-lg);
         width: 90%;
-        overflow: hidden;
-        border: 1px solid var(--border-2);
-    }
-
-    .image-modal-content {
-        max-width: 500px;
-        max-height: 90vh;
-    }
-
-    .preview-modal-content {
         max-width: 800px;
         max-height: 80vh;
+        overflow: hidden;
+        border: 1px solid var(--border-2);
+        box-shadow: var(--sh-lg);
     }
 
-    .image-modal-header,
     .preview-modal-header {
         padding: 16px 20px;
         border-bottom: 1px solid var(--border);
@@ -380,90 +374,29 @@
         align-items: center;
     }
 
-    .image-modal-header h3,
     .preview-modal-header h3 {
         font-size: 16px;
         margin: 0;
         color: var(--text-white);
     }
 
-    .image-modal-close,
     .preview-close {
         background: none;
         border: none;
         font-size: 24px;
         cursor: pointer;
         color: var(--text-3);
+        transition: var(--t);
     }
 
-    .image-modal-close:hover,
     .preview-close:hover {
         color: var(--accent);
     }
 
-    .image-modal-body,
     .preview-modal-body {
         padding: 20px;
         overflow-y: auto;
-    }
-
-    .image-preview-container {
-        text-align: center;
-        margin-bottom: 20px;
-        background: var(--bg-3);
-        border-radius: var(--r-sm);
-        padding: 20px;
-    }
-
-    .image-preview-container img {
-        max-width: 100%;
-        max-height: 200px;
-        border-radius: var(--r-sm);
-    }
-
-    .size-controls {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .size-control {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .size-control label {
-        width: 80px;
-        font-size: 12px;
-        color: var(--text-2);
-    }
-
-    .size-control input {
-        flex: 1;
-    }
-
-    .size-presets {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        align-items: center;
-        margin-top: 8px;
-        padding-top: 8px;
-        border-top: 1px solid var(--border);
-    }
-
-    .size-presets label {
-        font-size: 12px;
-        color: var(--text-2);
-    }
-
-    .image-modal-footer {
-        padding: 16px 20px;
-        border-top: 1px solid var(--border);
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
+        max-height: calc(80vh - 60px);
     }
 
     .preview-title {
@@ -481,260 +414,245 @@
         margin-bottom: 16px;
     }
 
+    .preview-content {
+        color: var(--text);
+        line-height: 1.8;
+    }
+
     .preview-content img {
         max-width: 100%;
         height: auto;
         border-radius: var(--r-sm);
         margin: 10px 0;
+        display: block;
     }
 
-    .loading-indicator {
-        display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 2px solid var(--border);
-        border-top-color: var(--accent);
-        border-radius: 50%;
-        animation: spin 0.6s linear infinite;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
+    @media (max-width: 768px) {
+        .editor-toolbar {
+            top: 0;
+            position: relative;
+        }
+        
+        .toolbar-btn span {
+            display: none;
+        }
+        
+        .toolbar-btn {
+            padding: 6px 8px;
+        }
+        
+        .form-actions {
+            flex-direction: column;
+        }
+        
+        .form-actions .btn {
+            width: 100%;
+            justify-content: center;
+        }
     }
 </style>
 
 <script>
-    const editor = document.getElementById("editor");
-    const bodyInput = document.getElementById("bodyInput");
-    const titleInput = document.getElementById("titleInput");
-    const prioritySelect = document.getElementById("prioritySelect");
+    // Rich Text Editor Implementation
+    const editor = document.getElementById('editor');
+    const bodyInput = document.getElementById('bodyInput');
+    const titleInput = document.getElementById('titleInput');
+    const prioritySelect = document.getElementById('prioritySelect');
 
     let savedRange = null;
-    let pendingImageFile = null;
-    let originalImageDimensions = { width: 0, height: 0 };
 
-    function saveCursorPosition() {
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-            savedRange = selection.getRangeAt(0).cloneRange();
+    function saveCursor() {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+            savedRange = sel.getRangeAt(0).cloneRange();
         }
     }
 
-    function restoreCursorPosition() {
+    function restoreCursor() {
         if (savedRange) {
-            const selection = window.getSelection();
-            selection.removeAllRanges();
-            selection.addRange(savedRange);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(savedRange);
             savedRange = null;
         }
     }
 
-    editor.addEventListener("input", function () {
-        localStorage.setItem("announcement_draft", editor.innerHTML);
-    });
-    editor.addEventListener("mouseup", saveCursorPosition);
-    editor.addEventListener("keyup", saveCursorPosition);
-    editor.addEventListener("click", saveCursorPosition);
+    editor.addEventListener('mouseup', saveCursor);
+    editor.addEventListener('keyup', saveCursor);
+    editor.addEventListener('click', saveCursor);
 
+    // Execute command on editor
     function execCommand(command, value = null) {
         editor.focus();
-        restoreCursorPosition();
+        restoreCursor();
         document.execCommand(command, false, value);
         editor.focus();
     }
 
-    document.querySelectorAll(".toolbar-btn").forEach((btn) => {
-        if (btn.tagName === "LABEL") return;
-        btn.addEventListener("click", (e) => {
+    // Setup toolbar buttons
+    document.querySelectorAll('.toolbar-btn').forEach(btn => {
+        if (btn.tagName === 'LABEL') return;
+
+        btn.addEventListener('click', (e) => {
             e.preventDefault();
             const command = btn.dataset.command;
 
-            if (command === "createLink") {
-                const url = prompt("أدخل رابط URL:", "https://");
-                if (url) execCommand("createLink", url);
-            } else if (command === "showHTML") {
-                const html = prompt("عرض HTML الخام:", editor.innerHTML);
-                if (html !== null) editor.innerHTML = html;
-            } else if (command === "undo") {
-                document.execCommand("undo");
-            } else if (command === "redo") {
-                document.execCommand("redo");
+            if (command === 'createLink') {
+                const url = prompt('أدخل رابط URL:', 'https://');
+                if (url) execCommand('createLink', url);
+            } else if (command === 'formatBlock') {
+                const value = btn.dataset.value;
+                if (value) execCommand('formatBlock', '<' + value + '>');
             } else {
                 execCommand(command);
             }
         });
     });
 
-    document.querySelectorAll(".toolbar-select").forEach((select) => {
-        select.addEventListener("change", (e) => {
-            execCommand(select.dataset.command, select.value);
+    // Handle select dropdowns
+    document.querySelectorAll('.toolbar-select').forEach(select => {
+        select.addEventListener('change', () => {
+            const command = select.dataset.command;
+            const value = select.value;
+            if (command === 'formatBlock') {
+                execCommand('formatBlock', value === 'p' ? '<p>' : '<' + value + '>');
+            }
         });
     });
 
-    document.querySelectorAll(".toolbar-color").forEach((colorPicker) => {
-        colorPicker.addEventListener("change", (e) => {
-            execCommand(colorPicker.dataset.command, colorPicker.value);
+    // Handle color pickers
+    document.querySelectorAll('.toolbar-color').forEach(colorPicker => {
+        colorPicker.addEventListener('change', () => {
+            const command = colorPicker.dataset.command;
+            execCommand(command, colorPicker.value);
         });
     });
 
-    const inlineImageInput = document.getElementById("inlineImageUpload");
-    inlineImageInput.addEventListener("change", function (e) {
-        const file = e.target.files[0];
-        if (file && file.type.startsWith("image/")) {
+    // Image upload
+    const imageUpload = document.getElementById('imageUpload');
+    const uploadLabel = imageUpload ? imageUpload.closest('.toolbar-btn') : null;
+
+    if (imageUpload) {
+        imageUpload.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file || !file.type.startsWith('image/')) return;
+
             if (file.size > 5 * 1024 * 1024) {
-                alert("حجم الصورة كبير جداً. الحد الأقصى هو 5 ميجابايت.");
-                inlineImageInput.value = "";
+                alert('حجم الصورة كبير جداً. الحد الأقصى هو 5 ميجابايت.');
+                imageUpload.value = '';
                 return;
             }
 
-            pendingImageFile = file;
-            const reader = new FileReader();
-            reader.onload = function (event) {
-                const img = new Image();
-                img.onload = function () {
-                    originalImageDimensions = { width: img.width, height: img.height };
-                    const modal = document.getElementById("imageSizeModal");
-                    const previewImg = document.getElementById("modalPreviewImage");
-                    previewImg.src = event.target.result;
-                    document.getElementById("imageWidth").value = Math.min(originalImageDimensions.width, 600);
-                    document.getElementById("imageHeight").value = "auto";
-                    modal.style.display = "flex";
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-        inlineImageInput.value = "";
-    });
+            const formData = new FormData();
+            formData.append('image', file);
 
-    function setPresetSize(width) {
-        document.getElementById("imageWidth").value = width;
-        document.getElementById("imageHeight").value = "auto";
-    }
+            if (uploadLabel) {
+                const originalHTML = uploadLabel.innerHTML;
+                uploadLabel.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>جاري الرفع...</span>';
+                uploadLabel.style.opacity = '0.7';
 
-    function setOriginalSize() {
-        document.getElementById("imageWidth").value = originalImageDimensions.width;
-        document.getElementById("imageHeight").value = "auto";
-    }
+                try {
+                    const response = await fetch('{{ url_for("announcements.upload_image") }}', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
 
-    function closeImageModal() {
-        document.getElementById("imageSizeModal").style.display = "none";
-        pendingImageFile = null;
-    }
-
-    function insertImageWithSize() {
-        if (!pendingImageFile) return;
-
-        const width = document.getElementById("imageWidth").value;
-        const height = document.getElementById("imageHeight").value;
-        const keepAspect = document.getElementById("keepAspectRatio").checked;
-
-        saveCursorPosition();
-        const insertionRange = savedRange;
-
-        const formData = new FormData();
-        formData.append("image", pendingImageFile);
-
-        fetch('{{ url_for("announcements.upload_image") }}', {
-            method: "POST",
-            body: formData,
-        })
-            .then((response) => response.json())
-            .then((data) => {
-                if (data.success) {
-                    let imgHtml = '<img src="' + data.url + '" style="max-width:100%; height:auto; border-radius:var(--r-sm); margin:10px 0;"';
-                    if (width && width !== "auto") {
-                        imgHtml += ' width="' + width + '"';
-                    }
-                    if (height && height !== "auto" && !keepAspect) {
-                        imgHtml += ' height="' + height + '"';
-                    }
-                    imgHtml += ' alt="Uploaded image">';
-
-                    editor.focus();
-                    const selection = window.getSelection();
-                    selection.removeAllRanges();
-                    if (insertionRange) {
-                        selection.addRange(insertionRange);
+                    if (data.success) {
+                        saveCursor();
+                        const imgHtml = '<img src="' + data.url + '" alt="Uploaded image" style="max-width: 100%; height: auto; margin: 10px 0; display: block; border-radius: var(--r-sm);">';
+                        execCommand('insertHTML', imgHtml);
                     } else {
-                        const range = document.createRange();
-                        range.selectNodeContents(editor);
-                        range.collapse(false);
-                        selection.addRange(range);
+                        alert('خطأ في رفع الصورة: ' + data.error);
                     }
-
-                    const inserted = document.execCommand("insertHTML", false, imgHtml);
-                    if (!inserted) {
-                        editor.insertAdjacentHTML("beforeend", imgHtml);
-                    }
-                } else {
-                    alert("خطأ في رفع الصورة: " + data.error);
+                } catch (err) {
+                    console.error(err);
+                    alert('حدث خطأ أثناء رفع الصورة');
+                } finally {
+                    uploadLabel.innerHTML = originalHTML;
+                    uploadLabel.style.opacity = '1';
+                    imageUpload.value = '';
                 }
-            })
-            .catch((error) => {
-                console.error("Error:", error);
-                alert("حدث خطأ أثناء رفع الصورة");
-            })
-            .finally(() => {
-                closeImageModal();
-                pendingImageFile = null;
-            });
+            }
+        });
     }
 
+    // Preview functionality
     function showPreview() {
-        const title = titleInput.value || "عنوان التبليغ";
-        const priority = prioritySelect.options[prioritySelect.selectedIndex].text;
-        const priorityValue = prioritySelect.value;
-        const content = editor.innerHTML || "لا يوجد محتوى";
+        const title = titleInput.value || 'عنوان التبليغ';
+        let priority = 'عادي';
+        let priorityValue = 'normal';
+        
+        if (prioritySelect && prioritySelect.options && prioritySelect.selectedIndex >= 0) {
+            priority = prioritySelect.options[prioritySelect.selectedIndex].text || 'عادي';
+            priorityValue = prioritySelect.value;
+        }
+        
+        const content = editor.innerHTML || 'لا يوجد محتوى';
 
-        const modal = document.getElementById("previewModal");
-        const previewTitle = modal.querySelector(".preview-title");
-        const previewContent = modal.querySelector(".preview-content");
-        const previewMeta = modal.querySelector(".preview-meta");
-        const previewBadge = modal.querySelector(".preview-badge-area");
-
-        previewTitle.textContent = title;
-        previewContent.innerHTML = content;
+        const modal = document.getElementById('previewModal');
+        if (!modal) return;
+        
+        const previewContent = document.getElementById('previewContent');
+        if (previewContent) previewContent.innerHTML = content;
+        
+        const previewTitle = modal.querySelector('.preview-title');
+        if (previewTitle) previewTitle.textContent = title;
 
         const now = new Date();
-        const formattedDate = now.toISOString().slice(0, 10);
-        const formattedTime = now.toTimeString().slice(0, 5);
-        previewMeta.innerHTML =
-            '<i class="fas fa-user"></i> {{ session.full_name }} &nbsp;&nbsp;<i class="fas fa-calendar"></i> ' +
-            formattedDate + " " + formattedTime;
+        const previewMeta = modal.querySelector('.preview-meta');
+        if (previewMeta) {
+            previewMeta.innerHTML = '<i class="fas fa-user"></i> {{ session.full_name }} &nbsp;&nbsp;' +
+                '<i class="fas fa-calendar"></i> ' + now.toISOString().slice(0,10) + ' ' + now.toTimeString().slice(0,5);
+        }
 
-        let badgeClass = "b-normal";
-        if (priorityValue === "urgent") badgeClass = "b-urgent";
-        else if (priorityValue === "high") badgeClass = "b-high";
-        else if (priorityValue === "low") badgeClass = "b-low";
+        const badgeMap = { urgent: 'b-urgent', high: 'b-high', low: 'b-low', normal: 'b-normal' };
+        const previewBadge = modal.querySelector('.preview-badge-area');
+        if (previewBadge) {
+            previewBadge.innerHTML = '<span class="badge ' + (badgeMap[priorityValue] || 'b-normal') + '">' + priority + '</span>';
+        }
 
-        previewBadge.innerHTML = '<span class="badge ' + badgeClass + '">' + priority + "</span>";
-        modal.style.display = "flex";
+        modal.style.display = 'flex';
     }
 
     function closePreview() {
-        document.getElementById("previewModal").style.display = "none";
+        const modal = document.getElementById('previewModal');
+        if (modal) modal.style.display = 'none';
     }
 
-    document.getElementById("announcementForm").addEventListener("submit", function (e) {
-        bodyInput.value = editor.innerHTML;
+    window.showPreview = showPreview;
+    window.closePreview = closePreview;
+
+    // Form submission
+    const form = document.getElementById('announcementForm');
+    if (form) {
+        form.addEventListener('submit', function () {
+            if (bodyInput) bodyInput.value = editor.innerHTML;
+        });
+    }
+
+    // Close modal on escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closePreview();
     });
 
-    editor.focus();
+    const previewModal = document.getElementById('previewModal');
+    if (previewModal) {
+        previewModal.addEventListener('click', function (e) {
+            if (e.target === this) closePreview();
+        });
+    }
 
-    document.addEventListener("keydown", function (e) {
-        if (e.key === "Escape") {
-            closePreview();
-            closeImageModal();
-        }
-    });
-
-    document.getElementById("previewModal").addEventListener("click", function (e) {
-        if (e.target === this) closePreview();
-    });
-    document.getElementById("imageSizeModal").addEventListener("click", function (e) {
-        if (e.target === this) closeImageModal();
-    });
+    // Make editor focusable and move cursor to end
+    if (editor) {
+        editor.focus();
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
 </script>
 
 {% endblock %}

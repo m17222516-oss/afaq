@@ -21,26 +21,26 @@
             >
             <a
                 href="{{ url_for('announcements.index', priority='urgent') }}"
-                class="pill urgent {% if priority_filter=='urgent' %}on{% endif %}"
+                class="pill urgent {% if priority_filter == 'urgent' %}on{% endif %}"
                 >⚡ عاجل</a
             >
             <a
                 href="{{ url_for('announcements.index', priority='high') }}"
-                class="pill high {% if priority_filter=='high' %}on{% endif %}"
+                class="pill high {% if priority_filter == 'high' %}on{% endif %}"
                 >↑ مهم</a
             >
             <a
                 href="{{ url_for('announcements.index', priority='normal') }}"
-                class="pill normal {% if priority_filter=='normal' %}on{% endif %}"
+                class="pill normal {% if priority_filter == 'normal' %}on{% endif %}"
                 >عادي</a
             >
             <a
                 href="{{ url_for('announcements.index', priority='low') }}"
-                class="pill low {% if priority_filter=='low' %}on{% endif %}"
+                class="pill low {% if priority_filter == 'low' %}on{% endif %}"
                 >↓ منخفض</a
             >
         </div>
-        {% if session.role in ['manager','superadmin'] %}
+        {% if session.role in ['manager', 'superadmin'] %}
         <a href="{{ url_for('announcements.create') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> تبليغ جديد
         </a>
@@ -51,45 +51,50 @@
 {% if items %} {% set pinned_items = items|selectattr('is_pinned')|list %} {%
 set normal_items = items|rejectattr('is_pinned')|list %}
 
-<!-- PINNED ANNOUNCEMENTS SECTION -->
+<!-- PINNED ANNOUNCEMENTS SECTION - Only shows if there is a pinned announcement -->
 {% if pinned_items %}
 <div class="pinned-section">
     <div class="section-header">
-        <i class="fas fa-thumbtack"></i>
-        <h3>التبليغات المثبتة</h3>
-        <span class="badge">{{ pinned_items|length }}</span>
+        <i class="fas fa-star-of-life"></i>
+        <h3>التبليغ المثبت</h3>
+        <span class="pin-badge"><i class="fas fa-thumbtack"></i> مثبت</span>
     </div>
 
     {% for ann in pinned_items %}
     <div
         class="ann-item-full pinned"
-        style="--dept-color:{{ ann.dept_color or '#00a6fb' }}"
+        style="--dept-color: {{ ann.dept_color or '#dc2626' }}"
     >
+        <div class="pinned-indicator"></div>
         <div class="ann-full-header">
             <div class="ann-badges">
                 <span class="pin-badge"
                     ><i class="fas fa-thumbtack"></i> مثبت</span
                 >
                 <span class="badge b-{{ ann.priority }}">
-                    {% if ann.priority=='urgent' %}<i class="fas fa-bolt"></i>
-                    عاجل {% elif ann.priority=='high' %}<i
+                    {% if ann.priority == 'urgent' %}<i class="fas fa-bolt"></i>
+                    عاجل {% elif ann.priority == 'high' %}<i
                         class="fas fa-arrow-up"
                     ></i>
-                    مهم {% elif ann.priority=='low' %}<i
+                    مهم {% elif ann.priority == 'low' %}<i
                         class="fas fa-arrow-down"
                     ></i>
                     منخفض {% else %}<i class="fas fa-circle"></i> عادي{% endif
                     %}
                 </span>
-                {% if session.role=='superadmin' %}
+                {% if ann.is_global %}
+                <span class="badge badge-global">
+                    <i class="fas fa-globe"></i> عام
+                </span>
+                {% elif session.role == 'superadmin' and not ann.is_global %}
                 <span class="badge b-dept">{{ ann.dept_name }}</span>
                 {% endif %}
             </div>
-            {% if session.role in ['manager','superadmin'] %}
+            {% if session.role in ['manager', 'superadmin'] %}
             <form
                 method="POST"
                 action="{{ url_for('announcements.delete', ann_id=ann.id) }}"
-                data-confirm="حذف هذا التبليغ؟"
+                onsubmit="return confirm('هل أنت متأكد من حذف هذا التبليغ؟');"
                 class="inline-form"
             >
                 <button class="btn btn-sm btn-ghost">
@@ -114,23 +119,33 @@ set normal_items = items|rejectattr('is_pinned')|list %}
                 ><i class="fas fa-comment"></i> {{ ann.comment_count }}
                 تعليق</span
             >
+            <span
+                class="reactions-count-meta"
+                onclick="event.stopPropagation(); showReactionsModalFromIndex({{ ann.id }})"
+                style="cursor: pointer"
+            >
+                <i class="fas fa-thumbs-up"></i> {{ ann.reaction_count or 0 }}
+                تفاعل
+            </span>
         </div>
 
-        <div class="ann-full-body">{{ ann.body|safe }}</div>
+        <div class="ann-full-body" style="max-height: none; overflow: visible">
+            {{ ann.body|safe }}
+        </div>
 
         <div class="ann-full-footer">
             <a
                 href="{{ url_for('announcements.detail', ann_id=ann.id) }}"
-                class="btn btn-accent btn-sm"
+                class="btn btn-accent"
             >
                 <i class="fas fa-comments"></i> عرض التعليقات ({{
                 ann.comment_count }})
             </a>
             <div class="ann-actions">
-                {% if session.role in ['manager','superadmin'] %}
+                {% if session.role in ['manager', 'superadmin'] %}
                 <a
                     href="{{ url_for('announcements.edit', ann_id=ann.id) }}"
-                    class="btn btn-sm btn-ghost"
+                    class="btn btn-ghost"
                 >
                     <i class="fas fa-edit"></i> تعديل
                 </a>
@@ -154,7 +169,7 @@ set normal_items = items|rejectattr('is_pinned')|list %}
     {% set latest = normal_items[0] %}
     <div
         class="ann-item-full latest"
-        style="--dept-color:{{ latest.dept_color or '#00a6fb' }}"
+        style="--dept-color: {{ latest.dept_color or '#00a6fb' }}"
     >
         <div class="ann-full-header">
             <div class="ann-badges">
@@ -162,27 +177,31 @@ set normal_items = items|rejectattr('is_pinned')|list %}
                     ><i class="fas fa-clock"></i> أحدث تبليغ</span
                 >
                 <span class="badge b-{{ latest.priority }}">
-                    {% if latest.priority=='urgent' %}<i
+                    {% if latest.priority == 'urgent' %}<i
                         class="fas fa-bolt"
                     ></i>
-                    عاجل {% elif latest.priority=='high' %}<i
+                    عاجل {% elif latest.priority == 'high' %}<i
                         class="fas fa-arrow-up"
                     ></i>
-                    مهم {% elif latest.priority=='low' %}<i
+                    مهم {% elif latest.priority == 'low' %}<i
                         class="fas fa-arrow-down"
                     ></i>
                     منخفض {% else %}<i class="fas fa-circle"></i> عادي{% endif
                     %}
                 </span>
-                {% if session.role=='superadmin' %}
+                {% if latest.is_global %}
+                <span class="badge badge-global">
+                    <i class="fas fa-globe"></i> عام
+                </span>
+                {% elif session.role == 'superadmin' and not latest.is_global %}
                 <span class="badge b-dept">{{ latest.dept_name }}</span>
                 {% endif %}
             </div>
-            {% if session.role in ['manager','superadmin'] %}
+            {% if session.role in ['manager', 'superadmin'] %}
             <form
                 method="POST"
                 action="{{ url_for('announcements.delete', ann_id=latest.id) }}"
-                data-confirm="حذف هذا التبليغ؟"
+                onsubmit="return confirm('هل أنت متأكد من حذف هذا التبليغ؟');"
                 class="inline-form"
             >
                 <button class="btn btn-sm btn-ghost">
@@ -208,24 +227,33 @@ set normal_items = items|rejectattr('is_pinned')|list %}
                 ><i class="fas fa-comment"></i> {{ latest.comment_count }}
                 تعليق</span
             >
+            <span
+                class="reactions-count-meta"
+                onclick="event.stopPropagation(); showReactionsModalFromIndex({{ latest.id }})"
+                style="cursor: pointer"
+            >
+                <i class="fas fa-thumbs-up"></i> {{ latest.reaction_count or 0
+                }} تفاعل
+            </span>
         </div>
 
-        <!-- FIXED: Added |safe filter here -->
-        <div class="ann-full-body">{{ latest.body|safe }}</div>
+        <div class="ann-full-body" style="max-height: none; overflow: visible">
+            {{ latest.body|safe }}
+        </div>
 
         <div class="ann-full-footer">
             <a
                 href="{{ url_for('announcements.detail', ann_id=latest.id) }}"
-                class="btn btn-accent btn-sm"
+                class="btn btn-accent"
             >
                 <i class="fas fa-comments"></i> عرض التعليقات ({{
                 latest.comment_count }})
             </a>
             <div class="ann-actions">
-                {% if session.role in ['manager','superadmin'] %}
+                {% if session.role in ['manager', 'superadmin'] %}
                 <a
                     href="{{ url_for('announcements.edit', ann_id=latest.id) }}"
-                    class="btn btn-sm btn-ghost"
+                    class="btn btn-ghost"
                 >
                     <i class="fas fa-edit"></i> تعديل
                 </a>
@@ -245,42 +273,50 @@ set normal_items = items|rejectattr('is_pinned')|list %}
         {% for ann in normal_items[1:] %}
         <div
             class="ann-item"
-            style="--dept-color:{{ ann.dept_color or '#00a6fb' }}"
+            style="--dept-color: {{ ann.dept_color or '#00a6fb' }}"
         >
             <div class="ann-top">
                 <div class="ann-content">
                     <div class="ann-badges">
                         <span class="badge b-{{ ann.priority }}">
-                            {% if ann.priority=='urgent' %}<i
+                            {% if ann.priority == 'urgent' %}<i
                                 class="fas fa-bolt"
                             ></i>
-                            عاجل {% elif ann.priority=='high' %}<i
+                            عاجل {% elif ann.priority == 'high' %}<i
                                 class="fas fa-arrow-up"
                             ></i>
-                            مهم {% elif ann.priority=='low' %}<i
+                            مهم {% elif ann.priority == 'low' %}<i
                                 class="fas fa-arrow-down"
                             ></i>
                             منخفض {% else %}<i class="fas fa-circle"></i> عادي{%
                             endif %}
                         </span>
-                        {% if session.role=='superadmin' %}
+                        {% if ann.is_global %}
+                        <span class="badge badge-global">
+                            <i class="fas fa-globe"></i> عام
+                        </span>
+                        {% elif session.role == 'superadmin' and not
+                        ann.is_global %}
                         <span class="badge b-dept">{{ ann.dept_name }}</span>
                         {% endif %}
                     </div>
                     <a
                         href="{{ url_for('announcements.detail', ann_id=ann.id) }}"
                         class="ann-title-text"
-                        >{{ ann.title }}</a
                     >
+                        {{ ann.title }}
+                    </a>
                     <div class="ann-excerpt">
                         {{ ann.body|striptags|truncate(160) }}
                     </div>
                 </div>
-                {% if session.role in ['manager','superadmin'] %}
+                {% if session.role in ['manager', 'superadmin'] %}
                 <form
                     method="POST"
                     action="{{ url_for('announcements.delete', ann_id=ann.id) }}"
-                    data-confirm="حذف هذا التبليغ؟"
+                    onsubmit="
+                        return confirm('هل أنت متأكد من حذف هذا التبليغ؟');
+                    "
                     class="inline-form"
                 >
                     <button class="btn btn-sm btn-ghost">
@@ -299,6 +335,14 @@ set normal_items = items|rejectattr('is_pinned')|list %}
                     ><i class="fas fa-comment"></i> {{ ann.comment_count
                     }}</span
                 >
+                <span
+                    class="reactions-count-compact"
+                    onclick="event.stopPropagation(); showReactionsModalFromIndex({{ ann.id }})"
+                    style="cursor: pointer"
+                >
+                    <i class="fas fa-thumbs-up"></i> {{ ann.reaction_count or 0
+                    }}
+                </span>
                 <a href="{{ url_for('announcements.detail', ann_id=ann.id) }}">
                     قراءة التبليغ <i class="fas fa-arrow-left"></i>
                 </a>
@@ -317,17 +361,439 @@ set normal_items = items|rejectattr('is_pinned')|list %}
             {% if search %}لا توجد نتائج لـ "{{ search }}"{% else %}لم يتم نشر
             أي تبليغ بعد{% endif %}
         </p>
-        {% if session.role in ['manager','superadmin'] %}
+        {% if session.role in ['manager', 'superadmin'] %}
         <a
             href="{{ url_for('announcements.create') }}"
             class="btn btn-primary"
             style="margin-top: 16px"
         >
-            <i class="fas fa-plus"></i> نشر أول تبليغ
+            <span>نشر أول تبليغ</span>
         </a>
         {% endif %}
     </div>
 </div>
 {% endif %}
+
+<!-- Reactions Modal -->
+<div id="reactionsModal" class="reactions-modal" style="display: none">
+    <div class="reactions-modal-content">
+        <div class="reactions-modal-header">
+            <h3><i class="fas fa-thumbs-up"></i> المتفاعلون مع هذا التبليغ</h3>
+            <button
+                class="reactions-modal-close"
+                onclick="closeReactionsModal()"
+            >
+                &times;
+            </button>
+        </div>
+        <div class="reactions-modal-body">
+            <div id="reactionsList" class="reactions-list">
+                <div
+                    class="loading-reactions"
+                    style="text-align: center; padding: 32px"
+                >
+                    <i
+                        class="fas fa-spinner fa-spin"
+                        style="font-size: 24px"
+                    ></i>
+                    <p style="margin-top: 12px">جاري التحميل...</p>
+                </div>
+            </div>
+        </div>
+        <div class="reactions-modal-footer">
+            <button class="btn btn-ghost" onclick="closeReactionsModal()">
+                إغلاق
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Additional styles for consistency */
+    .badge-global {
+        background: var(--accent-dim);
+        color: var(--accent);
+        border: 1px solid var(--border);
+    }
+
+    /* Ensure buttons have consistent size */
+    .ann-full-footer .btn,
+    .ann-actions .btn {
+        padding: 8px 18px;
+        font-size: 12.5px;
+    }
+
+    /* Make sure delete buttons are properly styled */
+    .inline-form .btn-sm {
+        padding: 5px 12px !important;
+        font-size: 11.5px !important;
+    }
+
+    /* Pinned section styling */
+    .pinned-section .section-header {
+        border-bottom: 2px solid var(--accent);
+        padding-bottom: 12px;
+        margin-bottom: 20px;
+    }
+
+    .pinned-section .section-header h3 {
+        font-size: 16px;
+        font-weight: 800;
+    }
+
+    .pinned-section .section-header i {
+        color: var(--accent);
+        font-size: 18px;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%,
+        100% {
+            transform: scale(1);
+            opacity: 0.7;
+        }
+        50% {
+            transform: scale(1.1);
+            opacity: 1;
+        }
+    }
+
+    /* Pinned indicator dot */
+    .pinned-indicator {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        width: 8px;
+        height: 8px;
+        background: var(--accent);
+        border-radius: 50%;
+        box-shadow: 0 0 10px var(--accent);
+        animation: blink 1.5s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+        0%,
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.5;
+            transform: scale(1.2);
+        }
+    }
+
+    /* Reaction styles */
+    .reactions-count-meta,
+    .reactions-count-compact {
+        cursor: pointer;
+        transition: var(--t);
+        padding: 2px 6px;
+        border-radius: var(--r-sm);
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .reactions-count-meta:hover,
+    .reactions-count-compact:hover {
+        background: var(--bg-hover);
+        color: var(--accent);
+    }
+
+    .reactions-count-compact {
+        font-size: 11px;
+    }
+
+    /* Reactions Modal */
+    .reactions-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(8px);
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .reactions-modal-content {
+        background: var(--bg-card-2);
+        border-radius: var(--r-lg);
+        width: 90%;
+        max-width: 500px;
+        max-height: 80vh;
+        overflow: hidden;
+        border: 1px solid var(--border-2);
+        box-shadow: var(--sh-lg);
+    }
+
+    .reactions-modal-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .reactions-modal-header h3 {
+        font-size: 16px;
+        margin: 0;
+        color: var(--text-white);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .reactions-modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: var(--text-3);
+        transition: var(--t);
+    }
+
+    .reactions-modal-close:hover {
+        color: var(--accent);
+    }
+
+    .reactions-modal-body {
+        padding: 20px;
+        overflow-y: auto;
+        max-height: calc(80vh - 120px);
+    }
+
+    .reactions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .reaction-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        background: var(--bg-hover);
+        border-radius: var(--r);
+        transition: var(--t);
+    }
+
+    .reaction-item:hover {
+        background: var(--bg-3);
+        transform: translateX(-3px);
+    }
+
+    .reaction-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--r);
+        background: var(--accent-gradient);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+
+    .reaction-avatar i,
+    .reaction-avatar span {
+        color: var(--bg-sidebar) !important;
+    }
+
+    body.light-theme .reaction-avatar span,
+    body.light-theme .reaction-avatar i {
+        color: #ffffff !important;
+    }
+
+    .reaction-info {
+        flex: 1;
+    }
+
+    .reaction-name {
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--text-white);
+    }
+
+    .reaction-dept {
+        font-size: 10px;
+        color: var(--text-3);
+        margin-top: 2px;
+    }
+
+    .reaction-role {
+        flex-shrink: 0;
+    }
+
+    .reactions-modal-footer {
+        padding: 16px 20px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+        .ann-full-footer {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .ann-full-footer .btn,
+        .ann-actions .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .ann-actions {
+            width: 100%;
+        }
+
+        .ann-actions a {
+            width: 100%;
+            text-align: center;
+        }
+
+        .pinned-indicator {
+            top: 12px;
+            left: 12px;
+            width: 6px;
+            height: 6px;
+        }
+
+        .reactions-modal-content {
+            width: 95%;
+        }
+    }
+</style>
+
+<script>
+    let currentReactionAnnouncementId = null;
+
+    function copyAnnouncementLink(annId) {
+        const url =
+            window.location.origin +
+            '{{ url_for("announcements.detail", ann_id=0) }}'.replace(
+                "0",
+                annId,
+            );
+        navigator.clipboard.writeText(url).then(() => {
+            const btn = event.target.closest("button");
+            if (btn) {
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> تم النسخ';
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                }, 2000);
+            }
+        });
+    }
+
+    function showReactionsModalFromIndex(annId) {
+        currentReactionAnnouncementId = annId;
+        showReactionsModal();
+    }
+
+    async function showReactionsModal() {
+        const modal = document.getElementById("reactionsModal");
+        const reactionsList = document.getElementById("reactionsList");
+
+        if (!modal) return;
+
+        reactionsList.innerHTML =
+            '<div class="loading-reactions" style="text-align: center; padding: 32px;"><i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i><p style="margin-top: 12px;">جاري التحميل...</p></div>';
+        modal.style.display = "flex";
+
+        try {
+            const res = await fetch(
+                `/announcements/${currentReactionAnnouncementId}/reactions`,
+            );
+            const data = await res.json();
+
+            if (data.success && data.reactions && data.reactions.length > 0) {
+                let html = "";
+                data.reactions.forEach((reaction) => {
+                    const roleBadge = getRoleBadge(reaction.role);
+                    html += `
+                        <div class="reaction-item">
+                            <div class="reaction-avatar">
+                                ${reaction.full_name ? reaction.full_name.charAt(0) : '<i class="fas fa-user"></i>'}
+                            </div>
+                            <div class="reaction-info">
+                                <div class="reaction-name">${escapeHtml(reaction.full_name)}</div>
+                                <div class="reaction-dept">${escapeHtml(reaction.dept_name || "—")}</div>
+                            </div>
+                            <div class="reaction-role">
+                                <span class="badge ${roleBadge}">${getRoleName(reaction.role)}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                reactionsList.innerHTML = html;
+            } else {
+                reactionsList.innerHTML =
+                    '<div style="text-align: center; padding: 48px; color: var(--text-3);"><i class="fas fa-thumbs-up" style="font-size: 48px; opacity: 0.3; display: block; margin-bottom: 12px;"></i><p>لا يوجد متفاعلون بعد</p><p style="font-size: 11px; margin-top: 8px;">كن أول من يتفاعل مع هذا التبليغ!</p></div>';
+            }
+        } catch (err) {
+            console.error("Error loading reactions:", err);
+            reactionsList.innerHTML =
+                '<div style="text-align: center; padding: 32px; color: var(--red);"><i class="fas fa-exclamation-circle"></i><p style="margin-top: 12px;">حدث خطأ في تحميل المتفاعلين</p></div>';
+        }
+    }
+
+    function closeReactionsModal() {
+        const modal = document.getElementById("reactionsModal");
+        if (modal) modal.style.display = "none";
+        currentReactionAnnouncementId = null;
+    }
+
+    function getRoleBadge(role) {
+        switch (role) {
+            case "superadmin":
+                return "b-superadmin";
+            case "manager":
+                return "b-manager";
+            default:
+                return "b-employee";
+        }
+    }
+
+    function getRoleName(role) {
+        switch (role) {
+            case "superadmin":
+                return "مدير النظام";
+            case "manager":
+                return "مدير قسم";
+            default:
+                return "موظف";
+        }
+    }
+
+    function escapeHtml(text) {
+        if (!text) return "";
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Close modal on escape key
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+            closeReactionsModal();
+        }
+    });
+
+    // Close modal when clicking outside
+    document.addEventListener("click", function (e) {
+        const modal = document.getElementById("reactionsModal");
+        if (modal && e.target === modal) {
+            closeReactionsModal();
+        }
+    });
+</script>
 
 {% endblock %}

@@ -73,26 +73,38 @@ def index():
     priority_filter = request.args.get("priority", "")
     search = request.args.get("q", "").strip()
 
-    base = """SELECT a.*, d.name_ar as dept_name, d.color as dept_color,
-              u.full_name as author,
-              (SELECT COUNT(*) FROM comments c WHERE c.announcement_id=a.id) as comment_count
-              FROM announcements a
-              JOIN departments d ON a.department_id=d.id
-              JOIN users u ON a.created_by=u.id"""
+    # Build the query based on user role
+    if role == "superadmin":
+        # Superadmin sees ALL announcements from ALL departments
+        base = """SELECT a.*, d.name_ar as dept_name, d.color as dept_color,
+                  u.full_name as author,
+                  (SELECT COUNT(*) FROM comments c WHERE c.announcement_id=a.id) as comment_count
+                  FROM announcements a
+                  JOIN departments d ON a.department_id=d.id
+                  JOIN users u ON a.created_by=u.id
+                  WHERE 1=1"""
+        where, params = [], []
+    else:
+        # Regular users see: global department (999) + their own department
+        base = """SELECT a.*, d.name_ar as dept_name, d.color as dept_color,
+                  u.full_name as author,
+                  (SELECT COUNT(*) FROM comments c WHERE c.announcement_id=a.id) as comment_count
+                  FROM announcements a
+                  JOIN departments d ON a.department_id=d.id
+                  JOIN users u ON a.created_by=u.id
+                  WHERE a.department_id IN (?, ?)"""
+        where, params = [], [999, dept_id]
 
-    where, params = [], []
-    if role != "superadmin":
-        where.append("a.department_id=?")
-        params.append(dept_id)
+    # Add filters
     if priority_filter:
-        where.append("a.priority=?")
+        where.append("a.priority = ?")
         params.append(priority_filter)
     if search:
         where.append("(a.title LIKE ? OR a.body LIKE ?)")
         params += [f"%{search}%", f"%{search}%"]
 
     if where:
-        base += " WHERE " + " AND ".join(where)
+        base += " AND " + " AND ".join(where)
     base += " ORDER BY a.is_pinned DESC, a.created_at DESC"
 
     items = db.execute(base, params).fetchall()
@@ -107,19 +119,30 @@ def index():
             "SELECT COUNT(*) as c FROM announcements WHERE is_pinned=1"
         ).fetchone()["c"]
     else:
+        # Include global department (999) + user's department in stats
         total = db.execute(
-            "SELECT COUNT(*) as c FROM announcements WHERE department_id=?", (dept_id,)
+            """
+            SELECT COUNT(*) as c FROM announcements
+            WHERE department_id IN (?, ?)
+        """,
+            (999, dept_id),
         ).fetchone()["c"]
         urgent = db.execute(
-            "SELECT COUNT(*) as c FROM announcements WHERE department_id=? AND priority='urgent'",
-            (dept_id,),
+            """
+            SELECT COUNT(*) as c FROM announcements
+            WHERE department_id IN (?, ?) AND priority='urgent'
+        """,
+            (999, dept_id),
         ).fetchone()["c"]
         pinned = db.execute(
-            "SELECT COUNT(*) as c FROM announcements WHERE department_id=? AND is_pinned=1",
-            (dept_id,),
+            """
+            SELECT COUNT(*) as c FROM announcements
+            WHERE department_id IN (?, ?) AND is_pinned=1
+        """,
+            (999, dept_id),
         ).fetchone()["c"]
 
-    departments = (
+    departments_list = (
         db.execute("SELECT * FROM departments").fetchall()
         if role == "superadmin"
         else []
@@ -131,7 +154,7 @@ def index():
         total=total,
         urgent=urgent,
         pinned=pinned,
-        departments=departments,
+        departments=departments_list,
         priority_filter=priority_filter,
         search=search,
     )
@@ -145,14 +168,28 @@ def detail(ann_id):
     dept_id = session.get("department_id")
 
     ann = db.execute(
-        "SELECT a.*, d.name_ar as dept_name, d.color as dept_color, u.full_name as author FROM announcements a JOIN departments d ON a.department_id=d.id JOIN users u ON a.created_by=u.id WHERE a.id=?",
+        """SELECT a.*, d.name_ar as dept_name, d.color as dept_color, u.full_name as author
+           FROM announcements a
+           JOIN departments d ON a.department_id=d.id
+           JOIN users u ON a.created_by=u.id
+           WHERE a.id=?""",
         (ann_id,),
     ).fetchone()
 
     if not ann:
         flash("التبليغ غير موجود", "danger")
         return redirect(url_for("announcements.index"))
-    if role != "superadmin" and ann["department_id"] != dept_id:
+
+    # Check if user can view this announcement
+    can_view = False
+    if role == "superadmin":
+        can_view = True
+    elif ann["department_id"] == 999:  # Global department
+        can_view = True
+    elif ann["department_id"] == dept_id:
+        can_view = True
+
+    if not can_view:
         flash("ليس لديك صلاحية لعرض هذا التبليغ", "danger")
         return redirect(url_for("announcements.index"))
 
@@ -164,10 +201,13 @@ def detail(ann_id):
     reaction_count = db.execute(
         "SELECT COUNT(*) as c FROM reactions WHERE announcement_id=?", (ann_id,)
     ).fetchone()["c"]
-    user_reacted = db.execute(
-        "SELECT id FROM reactions WHERE announcement_id=? AND user_id=?",
-        (ann_id, session["user_id"]),
-    ).fetchone() is not None
+    user_reacted = (
+        db.execute(
+            "SELECT id FROM reactions WHERE announcement_id=? AND user_id=?",
+            (ann_id, session["user_id"]),
+        ).fetchone()
+        is not None
+    )
 
     db.close()
     return render_template(
@@ -196,50 +236,61 @@ def create():
 
     if request.method == "POST":
         title = request.form.get("title", "").strip()
-        # IMPORTANT: Don't strip or escape HTML from the body
-        body = request.form.get("body", "")  # Remove .strip() to preserve HTML
+        body = request.form.get("body", "")
         priority = request.form.get("priority", "normal")
         dept_value = request.form.get("department_id")
         is_pinned = 1 if request.form.get("is_pinned") else 0
+        is_global = 1 if request.form.get("is_global") else 0
 
-        send_to_all = dept_value == "all" and role == "superadmin"
-
-        if not send_to_all:
+        # Handle global announcement
+        if role == "superadmin" and is_global == 1:
+            department_id = 999
+        else:
             if dept_value is None or dept_value == "":
                 flash("يرجى اختيار القسم", "danger")
                 db.close()
                 return render_template(
                     "announcements/create.html", departments=departments
                 )
-            dept_id = int(dept_value)
-            if role == "manager" and dept_id != session.get("department_id"):
+            department_id = int(dept_value)
+            if role == "manager" and department_id != session.get("department_id"):
                 flash("لا يمكنك النشر في قسم آخر", "danger")
                 db.close()
                 return redirect(url_for("announcements.create"))
 
         if title and body:
-            if send_to_all:
-                all_depts = db.execute("SELECT id FROM departments").fetchall()
-                for d in all_depts:
-                    db.execute(
-                        "INSERT INTO announcements (title,body,priority,department_id,created_by,is_pinned) VALUES (?,?,?,?,?,?)",
-                        (title, body, priority, d["id"], session["user_id"], is_pinned),
-                    )
-                db.commit()
+            # If pinning this new announcement, unpin any existing pinned announcement first
+            if is_pinned == 1:
+                db.execute("UPDATE announcements SET is_pinned = 0 WHERE is_pinned = 1")
+
+            db.execute(
+                """
+                INSERT INTO announcements (title, body, priority, department_id, created_by, is_pinned, is_global)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    title,
+                    body,
+                    priority,
+                    department_id,
+                    session["user_id"],
+                    is_pinned,
+                    is_global,
+                ),
+            )
+            db.commit()
+
+            if is_global:
                 log_action(
                     session["user_id"],
                     "create_announcement",
-                    f"{title} (جميع الأقسام)",
+                    f"{title} (عام - جميع الأقسام)",
                 )
-                flash("تم نشر التبليغ لجميع الأقسام والدوائر بنجاح ✓", "success")
+                flash("تم نشر التبليغ العام بنجاح ✓", "success")
             else:
-                db.execute(
-                    "INSERT INTO announcements (title,body,priority,department_id,created_by,is_pinned) VALUES (?,?,?,?,?,?)",
-                    (title, body, priority, dept_id, session["user_id"], is_pinned),
-                )
-                db.commit()
                 log_action(session["user_id"], "create_announcement", title)
                 flash("تم نشر التبليغ بنجاح ✓", "success")
+
             db.close()
             return redirect(url_for("announcements.index"))
         flash("يرجى ملء جميع الحقول", "danger")
@@ -257,7 +308,11 @@ def react(ann_id):
     dept_id = session.get("department_id")
 
     ann = db.execute("SELECT * FROM announcements WHERE id=?", (ann_id,)).fetchone()
-    if not ann or (role != "superadmin" and ann["department_id"] != dept_id):
+    if not ann or (
+        role != "superadmin"
+        and ann["department_id"] != dept_id
+        and ann["is_global"] != 1
+    ):
         db.close()
         return jsonify({"success": False, "error": "غير مصرح"}), 403
 
@@ -294,6 +349,7 @@ def add_comment(ann_id):
     if not ann or (
         session.get("role") != "superadmin"
         and ann["department_id"] != session.get("department_id")
+        and ann["is_global"] != 1
     ):
         db.close()
         flash("غير مصرح", "danger")
@@ -317,15 +373,32 @@ def add_comment(ann_id):
 def delete(ann_id):
     db = get_db()
     ann = db.execute("SELECT * FROM announcements WHERE id=?", (ann_id,)).fetchone()
-    if ann and (
-        session["role"] == "superadmin"
-        or ann["department_id"] == session.get("department_id")
-    ):
+
+    if not ann:
+        flash("التبليغ غير موجود", "danger")
+        db.close()
+        return redirect(url_for("announcements.index"))
+
+    # Check permissions
+    can_delete = False
+    if session["role"] == "superadmin":
+        can_delete = True
+    elif ann["department_id"] == 999:
+        flash("ليس لديك صلاحية لحذف التبليغات العامة", "danger")
+        db.close()
+        return redirect(url_for("announcements.index"))
+    elif ann["department_id"] == session.get("department_id"):
+        can_delete = True
+
+    if can_delete:
         db.execute("DELETE FROM comments WHERE announcement_id=?", (ann_id,))
         db.execute("DELETE FROM announcements WHERE id=?", (ann_id,))
         db.commit()
         log_action(session["user_id"], "delete_announcement", f"#{ann_id}")
         flash("تم حذف التبليغ", "success")
+    else:
+        flash("ليس لديك صلاحية لحذف هذا التبليغ", "danger")
+
     db.close()
     return redirect(url_for("announcements.index"))
 
@@ -343,7 +416,14 @@ def edit(ann_id):
         db.close()
         return redirect(url_for("announcements.index"))
 
-    if role != "superadmin" and ann["department_id"] != session.get("department_id"):
+    # Check permissions
+    if role == "superadmin":
+        pass
+    elif ann["department_id"] == 999:
+        flash("ليس لديك صلاحية لتعديل التبليغات العامة", "danger")
+        db.close()
+        return redirect(url_for("announcements.index"))
+    elif ann["department_id"] != session.get("department_id"):
         flash("ليس لديك صلاحية لتعديل هذا التبليغ", "danger")
         db.close()
         return redirect(url_for("announcements.index"))
@@ -358,15 +438,34 @@ def edit(ann_id):
 
     if request.method == "POST":
         title = request.form.get("title", "").strip()
-        body = request.form.get("body", "").strip()
+        body = request.form.get("body", "")
         priority = request.form.get("priority", "normal")
-        dept_id = int(request.form.get("department_id", ann["department_id"]))
+        dept_value = request.form.get("department_id", ann["department_id"])
         is_pinned = 1 if request.form.get("is_pinned") else 0
+        is_global = 1 if request.form.get("is_global") else 0
+
+        # Handle global announcement
+        if role == "superadmin" and is_global == 1:
+            department_id = 999
+        else:
+            department_id = int(dept_value)
 
         if title and body:
+            # If trying to pin this announcement
+            if is_pinned == 1 and ann["is_pinned"] == 0:
+                # Unpin any other pinned announcement first
+                db.execute(
+                    "UPDATE announcements SET is_pinned = 0 WHERE is_pinned = 1 AND id != ?",
+                    (ann_id,),
+                )
+
             db.execute(
-                "UPDATE announcements SET title=?,body=?,priority=?,department_id=?,is_pinned=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
-                (title, body, priority, dept_id, is_pinned, ann_id),
+                """
+                UPDATE announcements
+                SET title=?, body=?, priority=?, department_id=?, is_pinned=?, is_global=?, updated_at=CURRENT_TIMESTAMP
+                WHERE id=?
+            """,
+                (title, body, priority, department_id, is_pinned, is_global, ann_id),
             )
             db.commit()
             log_action(
@@ -514,122 +613,216 @@ def delete_uploaded_image():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
-        @announcements_bp.route("/debug-announcement/<int:ann_id>")
-        @login_required
-        def debug_announcement(ann_id):
-            """Debug route to see raw database content"""
-            db = get_db()
-            ann = db.execute(
-                "SELECT * FROM announcements WHERE id=?", (ann_id,)
-            ).fetchone()
-            db.close()
 
-            if not ann:
-                return "Announcement not found", 404
+@announcements_bp.route("/debug-announcement/<int:ann_id>")
+@login_required
+def debug_announcement(ann_id):
+    """Debug route to see raw database content"""
+    import html
 
-            # Create a debug page
-            debug_html = f"""
-            <!DOCTYPE html>
-            <html dir="ltr">
-            <head>
-                <title>Debug Announcement #{ann_id}</title>
-                <style>
-                    body {{ font-family: monospace; padding: 20px; background: #f5f5f5; }}
-                    .section {{ background: white; margin: 20px 0; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-                    h3 {{ margin-top: 0; color: #333; }}
-                    pre {{ background: #f0f0f0; padding: 10px; overflow-x: auto; border-radius: 4px; }}
-                    .raw {{ font-family: monospace; white-space: pre-wrap; word-wrap: break-word; }}
-                    .rendered {{ border: 1px solid #ddd; padding: 10px; }}
-                </style>
-            </head>
-            <body>
-                <h1>Debug Announcement #{ann_id}</h1>
+    db = get_db()
+    ann = db.execute("SELECT * FROM announcements WHERE id=?", (ann_id,)).fetchone()
+    db.close()
 
-                <div class="section">
-                    <h3>📝 Basic Info</h3>
-                    <p><strong>Title:</strong> {ann["title"]}</p>
-                    <p><strong>Priority:</strong> {ann["priority"]}</p>
-                    <p><strong>Department ID:</strong> {ann["department_id"]}</p>
-                    <p><strong>Created By:</strong> {ann["created_by"]}</p>
-                    <p><strong>Created At:</strong> {ann["created_at"]}</p>
-                    <p><strong>Is Pinned:</strong> {ann["is_pinned"]}</p>
-                </div>
+    if not ann:
+        return "Announcement not found", 404
 
-                <div class="section">
-                    <h3>🔍 RAW BODY (What's actually in the database)</h3>
-                    <pre class="raw">{ann["body"]}</pre>
-                </div>
+    # Create a debug page
+    debug_html = f"""
+    <!DOCTYPE html>
+    <html dir="ltr">
+    <head>
+        <title>Debug Announcement #{ann_id}</title>
+        <style>
+            body {{ font-family: monospace; padding: 20px; background: #f5f5f5; }}
+            .section {{ background: white; margin: 20px 0; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+            h3 {{ margin-top: 0; color: #333; }}
+            pre {{ background: #f0f0f0; padding: 10px; overflow-x: auto; border-radius: 4px; }}
+            .raw {{ font-family: monospace; white-space: pre-wrap; word-wrap: break-word; }}
+            .rendered {{ border: 1px solid #ddd; padding: 10px; }}
+        </style>
+    </head>
+    <body>
+        <h1>Debug Announcement #{ann_id}</h1>
 
-                <div class="section">
-                    <h3>🔧 HTML ENTITIES DECODED</h3>
-                    <pre class="raw">{__import__("html").unescape(ann["body"]) if ann["body"] else ""}</pre>
-                </div>
+        <div class="section">
+            <h3>📝 Basic Info</h3>
+            <p><strong>Title:</strong> {ann["title"]}</p>
+            <p><strong>Priority:</strong> {ann["priority"]}</p>
+            <p><strong>Department ID:</strong> {ann["department_id"]}</p>
+            <p><strong>Is Global:</strong> {ann["is_global"]}</p>
+            <p><strong>Created By:</strong> {ann["created_by"]}</p>
+            <p><strong>Created At:</strong> {ann["created_at"]}</p>
+            <p><strong>Is Pinned:</strong> {ann["is_pinned"]}</p>
+        </div>
 
-                <div class="section">
-                    <h3>👁️ RENDERED WITH |safe (What it should look like)</h3>
-                    <div class="rendered">
-                        {ann["body"] | safe if ann["body"] else ""}
-                    </div>
-                </div>
+        <div class="section">
+            <h3>🔍 RAW BODY (What's actually in the database)</h3>
+            <pre class="raw">{ann["body"]}</pre>
+        </div>
 
-                <div class="section">
-                    <h3>📊 Body Statistics</h3>
-                    <p><strong>Length:</strong> {len(ann["body"]) if ann["body"] else 0} characters</p>
-                    <p><strong>Contains &amp;lt;:</strong> {"Yes" if ann["body"] and "&lt;" in ann["body"] else "No"}</p>
-                    <p><strong>Contains &amp;gt;:</strong> {"Yes" if ann["body"] and "&gt;" in ann["body"] else "No"}</p>
-                    <p><strong>Contains &amp;amp;:</strong> {"Yes" if ann["body"] and "&amp;" in ann["body"] else "No"}</p>
-                    <p><strong>Contains &amp;quot;:</strong> {"Yes" if ann["body"] and "&quot;" in ann["body"] else "No"}</p>
-                </div>
+        <div class="section">
+            <h3>🔧 HTML ENTITIES DECODED</h3>
+            <pre class="raw">{html.unescape(ann["body"]) if ann["body"] else ""}</pre>
+        </div>
 
-                <div class="section">
-                    <h3>🛠️ Quick Fix Options</h3>
-                    <form method="POST" action="/debug-fix/{ann_id}">
-                        <button type="submit" name="action" value="unescape" style="padding: 10px 20px; margin: 5px; cursor: pointer;">
-                            🔧 Decode HTML Entities
-                        </button>
-                        <button type="submit" name="action" value="clear" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: #dc3545; color: white;">
-                            🗑️ Clear Body (Set to empty)
-                        </button>
-                    </form>
-                </div>
+        <div class="section">
+            <h3>👁️ RENDERED WITH |safe (What it should look like)</h3>
+            <div class="rendered">
+                {ann["body"] | safe if ann["body"] else ""}
+            </div>
+        </div>
 
-                <div class="section">
-                    <h3>🔗 Links</h3>
-                    <p><a href="{url_for("announcements.detail", ann_id=ann_id)}">View Normal Detail Page</a></p>
-                    <p><a href="{url_for("announcements.edit", ann_id=ann_id)}">Edit Announcement</a></p>
-                </div>
-            </body>
-            </html>
-            """
-            return debug_html
+        <div class="section">
+            <h3>📊 Body Statistics</h3>
+            <p><strong>Length:</strong> {len(ann["body"]) if ann["body"] else 0} characters</p>
+            <p><strong>Contains &amp;lt;:</strong> {"Yes" if ann["body"] and "&lt;" in ann["body"] else "No"}</p>
+            <p><strong>Contains &amp;gt;:</strong> {"Yes" if ann["body"] and "&gt;" in ann["body"] else "No"}</p>
+            <p><strong>Contains &amp;amp;:</strong> {"Yes" if ann["body"] and "&amp;" in ann["body"] else "No"}</p>
+            <p><strong>Contains &amp;quot;:</strong> {"Yes" if ann["body"] and "&quot;" in ann["body"] else "No"}</p>
+        </div>
 
-        @announcements_bp.route("/debug-fix/<int:ann_id>", methods=["POST"])
-        @login_required
-        def debug_fix(ann_id):
-            """Fix corrupted announcement data"""
-            import html
+        <div class="section">
+            <h3>🛠️ Quick Fix Options</h3>
+            <form method="POST" action="/debug-fix/{ann_id}">
+                <button type="submit" name="action" value="unescape" style="padding: 10px 20px; margin: 5px; cursor: pointer;">
+                    🔧 Decode HTML Entities
+                </button>
+                <button type="submit" name="action" value="clear" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: #dc3545; color: white;">
+                    🗑️ Clear Body (Set to empty)
+                </button>
+            </form>
+        </div>
 
-            db = get_db()
-            action = request.form.get("action")
+        <div class="section">
+            <h3>🔗 Links</h3>
+            <p><a href="{url_for("announcements.detail", ann_id=ann_id)}">View Normal Detail Page</a></p>
+            <p><a href="{url_for("announcements.edit", ann_id=ann_id)}">Edit Announcement</a></p>
+        </div>
+    </body>
+    </html>
+    """
+    return debug_html
 
-            if action == "unescape":
-                # Decode HTML entities
-                ann = db.execute(
-                    "SELECT body FROM announcements WHERE id=?", (ann_id,)
-                ).fetchone()
-                if ann and ann["body"]:
-                    fixed_body = html.unescape(ann["body"])
-                    db.execute(
-                        "UPDATE announcements SET body = ? WHERE id = ?",
-                        (fixed_body, ann_id),
-                    )
-                    db.commit()
-                    flash("✅ تم فك تشفير HTML entities بنجاح!", "success")
 
-            elif action == "clear":
-                db.execute("UPDATE announcements SET body = '' WHERE id = ?", (ann_id,))
-                db.commit()
-                flash("🗑️ تم مسح محتوى التبليغ", "warning")
+@announcements_bp.route("/debug-fix/<int:ann_id>", methods=["POST"])
+@login_required
+def debug_fix(ann_id):
+    """Fix corrupted announcement data"""
+    import html
 
-            db.close()
-            return redirect(url_for("announcements.debug_announcement", ann_id=ann_id))
+    db = get_db()
+    action = request.form.get("action")
+
+    if action == "unescape":
+        # Decode HTML entities
+        ann = db.execute(
+            "SELECT body FROM announcements WHERE id=?", (ann_id,)
+        ).fetchone()
+        if ann and ann["body"]:
+            fixed_body = html.unescape(ann["body"])
+            db.execute(
+                "UPDATE announcements SET body = ? WHERE id = ?",
+                (fixed_body, ann_id),
+            )
+            db.commit()
+            flash("✅ تم فك تشفير HTML entities بنجاح!", "success")
+
+    elif action == "clear":
+        db.execute("UPDATE announcements SET body = '' WHERE id = ?", (ann_id,))
+        db.commit()
+        flash("🗑️ تم مسح محتوى التبليغ", "warning")
+
+    db.close()
+    return redirect(url_for("announcements.debug_announcement", ann_id=ann_id))
+
+
+@announcements_bp.route("/announcements/<int:ann_id>/pin", methods=["POST"])
+@login_required
+@role_required("superadmin", "manager")
+def toggle_pin(ann_id):
+    """Pin an announcement - automatically unpins any other pinned announcement"""
+    db = get_db()
+
+    # Get the announcement to be pinned
+    ann = db.execute("SELECT * FROM announcements WHERE id=?", (ann_id,)).fetchone()
+
+    if not ann:
+        flash("التبليغ غير موجود", "danger")
+        db.close()
+        return redirect(url_for("announcements.index"))
+
+    # Check permissions
+    can_pin = False
+    if session["role"] == "superadmin":
+        can_pin = True
+    elif ann["department_id"] == session.get("department_id"):
+        can_pin = True
+    else:
+        flash("ليس لديك صلاحية لتثبيت هذا التبليغ", "danger")
+        db.close()
+        return redirect(url_for("announcements.index"))
+
+    # Check if this announcement is already pinned
+    is_currently_pinned = ann["is_pinned"] == 1
+
+    if is_currently_pinned:
+        # Unpin the current announcement
+        db.execute("UPDATE announcements SET is_pinned = 0 WHERE id = ?", (ann_id,))
+        db.commit()
+        flash("تم إلغاء تثبيت التبليغ", "success")
+    else:
+        # First, unpin any other pinned announcement (ensures only ONE pinned)
+        db.execute("UPDATE announcements SET is_pinned = 0 WHERE is_pinned = 1")
+
+        # Then pin the selected announcement
+        db.execute("UPDATE announcements SET is_pinned = 1 WHERE id = ?", (ann_id,))
+        db.commit()
+
+        log_action(session["user_id"], "pin_announcement", f"#{ann_id}: {ann['title']}")
+        flash("تم تثبيت التبليغ بنجاح", "success")
+
+    db.close()
+    return redirect(url_for("announcements.detail", ann_id=ann_id))
+
+
+@announcements_bp.route("/announcements/<int:ann_id>/reactions")
+@login_required
+def get_reactions(ann_id):
+    """Get list of users who reacted to an announcement"""
+    db = get_db()
+
+    # Check if user can view this announcement
+    role = session.get("role")
+    dept_id = session.get("department_id")
+
+    ann = db.execute("SELECT * FROM announcements WHERE id=?", (ann_id,)).fetchone()
+    if not ann:
+        return jsonify({"success": False, "error": "Announcement not found"}), 404
+
+    can_view = False
+    if role == "superadmin":
+        can_view = True
+    elif ann["department_id"] == 999:
+        can_view = True
+    elif ann["department_id"] == dept_id:
+        can_view = True
+
+    if not can_view:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+
+    # Get all users who reacted
+    reactions = db.execute(
+        """
+        SELECT r.*, u.full_name, u.role, u.department_id, d.name_ar as dept_name
+        FROM reactions r
+        JOIN users u ON r.user_id = u.id
+        LEFT JOIN departments d ON u.department_id = d.id
+        WHERE r.announcement_id = ?
+        ORDER BY r.created_at DESC
+    """,
+        (ann_id,),
+    ).fetchall()
+
+    db.close()
+    return jsonify({"success": True, "reactions": [dict(r) for r in reactions]})

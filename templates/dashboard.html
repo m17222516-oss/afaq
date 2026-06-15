@@ -1,57 +1,6 @@
 {% extends "base.html" %} {% block title %}لوحة التحكم — آفاق الفكر{% endblock
 %} {% block page_title %}لوحة التحكم{% endblock %} {% block content %}
 
-<!-- Stats -->
-<!--<div class="stats-row">
-  {% if session.role == 'superadmin' %}
-  <div class="stat-box">
-    <div class="stat-ico" style="background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 4px 14px rgba(16,185,129,.3)">
-      <i class="fas fa-users"></i>
-    </div>
-    <div>
-      <div class="stat-val">{{ stats.users }}</div>
-      <div class="stat-lbl">إجمالي الموظفين</div>
-    </div>
-  </div>
-  <div class="stat-box">
-    <div class="stat-ico" style="background:linear-gradient(135deg,#6366f1,#4f46e5);box-shadow:0 4px 14px rgba(99,102,241,.3)">
-      <i class="fas fa-building"></i>
-    </div>
-    <div>
-      <div class="stat-val">{{ stats.depts }}</div>
-      <div class="stat-lbl">الأقسام</div>
-    </div>
-  </div>
-  {% endif %}
-  <div class="stat-box">
-    <div class="stat-ico" style="background:linear-gradient(135deg,#3b7fff,#2563eb);box-shadow:0 4px 14px rgba(59,127,255,.3)">
-      <i class="fas fa-bullhorn"></i>
-    </div>
-    <div>
-      <div class="stat-val">{{ stats.announcements }}</div>
-      <div class="stat-lbl">التبليغات</div>
-    </div>
-  </div>
-  <div class="stat-box">
-    <div class="stat-ico" style="background:linear-gradient(135deg,#f43f5e,#e11d48);box-shadow:0 4px 14px rgba(244,63,94,.3)">
-      <i class="fas fa-bolt"></i>
-    </div>
-    <div>
-      <div class="stat-val">{{ stats.urgent }}</div>
-      <div class="stat-lbl">تبليغات عاجلة</div>
-    </div>
-  </div>
-  <div class="stat-box">
-    <div class="stat-ico" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);box-shadow:0 4px 14px rgba(56,189,248,.3)">
-      <i class="fas fa-shield-alt"></i>
-    </div>
-    <div>
-      <div class="stat-val">{{ stats.policies }}</div>
-      <div class="stat-lbl">السياسات</div>
-    </div>
-  </div>
-</div>-->
-
 <!-- Recent Announcements -->
 <div class="card">
     <div class="card-head">
@@ -59,10 +8,7 @@
             <i class="fas fa-bullhorn" style="color: var(--accent)"></i> آخر
             التبليغات
         </h2>
-        <a
-            href="{{ url_for('announcements.index') }}"
-            class="btn btn-ghost btn-sm"
-        >
+        <a href="{{ url_for('announcements.index') }}" class="btn btn-ghost">
             عرض الكل <i class="fas fa-arrow-left"></i>
         </a>
     </div>
@@ -70,66 +16,36 @@
         {% if announcements %} {% for ann in announcements %}
         <a
             href="{{ url_for('announcements.detail', ann_id=ann.id) }}"
-            style="
-                display: flex;
-                align-items: center;
-                gap: 14px;
-                padding: 14px 20px;
-                border-bottom: 1px solid var(--border);
-                text-decoration: none;
-                transition: var(--t);
-            "
+            class="announcement-item"
             onmouseover="this.style.background = 'var(--bg-hover)'"
             onmouseout="this.style.background = ''"
         >
             <div
-                style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:{% if ann.priority=='urgent' %}var(--red){% elif ann.priority=='high' %}var(--orange){% else %}var(--blue-400){% endif %};box-shadow:0 0 8px {% if ann.priority=='urgent' %}var(--red){% elif ann.priority=='high' %}var(--orange){% else %}var(--blue-400){% endif %}"
+                class="priority-dot"
+                style="background: {% if ann.priority == 'urgent' %}var(--red){% elif ann.priority == 'high' %}var(--orange){% else %}var(--accent){% endif %}; box-shadow: 0 0 8px {% if ann.priority == 'urgent' %}var(--red){% elif ann.priority == 'high' %}var(--orange){% else %}var(--accent){% endif %};"
             ></div>
-            <div style="flex: 1; min-width: 0">
-                <div
-                    style="
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                        margin-bottom: 3px;
-                    "
-                >
-                    {% if ann.is_pinned %}<i
-                        class="fas fa-thumbtack"
-                        style="color: var(--accent); font-size: 10px"
-                    ></i
-                    >{% endif %}
-                    <span
-                        style="
-                            font-weight: 700;
-                            font-size: 13px;
-                            color: var(--text-white);
-                            white-space: nowrap;
-                            overflow: hidden;
-                            text-overflow: ellipsis;
-                        "
-                        >{{ ann.title }}</span
-                    >
-                    <span
-                        class="badge b-{{ ann.priority }}"
-                        style="flex-shrink: 0"
-                    >
-                        {% if ann.priority=='urgent' %}عاجل{% elif
-                        ann.priority=='high' %}مهم{% elif ann.priority=='low'
-                        %}منخفض{% else %}عادي{% endif %}
+            <div class="announcement-content">
+                <div class="announcement-title-row">
+                    {% if ann.is_pinned %}
+                    <i class="fas fa-thumbtack pin-icon"></i>
+                    {% endif %}
+                    <span class="announcement-title">{{ ann.title }}</span>
+                    <span class="badge b-{{ ann.priority }}">
+                        {% if ann.priority == 'urgent' %}عاجل {% elif
+                        ann.priority == 'high' %}مهم {% elif ann.priority ==
+                        'low' %}منخفض {% else %}عادي{% endif %}
                     </span>
                 </div>
-                <div style="font-size: 11px; color: var(--text-3)">
-                    <i class="fas fa-user" style="font-size: 10px"></i> {{
-                    ann.author }} {% if session.role=='superadmin' %} —
-                    <span style="color: var(--accent)">{{ ann.dept_name }}</span
-                    >{% endif %} · {{ ann.created_at[:10] }}
+                <div class="announcement-meta">
+                    <i class="fas fa-user"></i> {{ ann.author }} {% if
+                    session.role == 'superadmin' %} —
+                    <span style="color: var(--accent)"
+                        >{{ ann.dept_name }}</span
+                    >
+                    {% endif %} · {{ ann.created_at[:10] }}
                 </div>
             </div>
-            <i
-                class="fas fa-arrow-left"
-                style="color: var(--text-3); font-size: 11px; flex-shrink: 0"
-            ></i>
+            <i class="fas fa-arrow-left arrow-icon"></i>
         </a>
         {% endfor %} {% else %}
         <div class="empty">
@@ -140,5 +56,81 @@
         {% endif %}
     </div>
 </div>
+
+<style>
+    .announcement-item {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--border);
+        text-decoration: none;
+        transition: var(--t);
+    }
+
+    .priority-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .announcement-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .announcement-title-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 3px;
+        flex-wrap: wrap;
+    }
+
+    .pin-icon {
+        color: var(--accent);
+        font-size: 10px;
+    }
+
+    .announcement-title {
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--text-white);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .announcement-meta {
+        font-size: 11px;
+        color: var(--text-3);
+    }
+
+    .announcement-meta i {
+        font-size: 10px;
+    }
+
+    .arrow-icon {
+        color: var(--text-3);
+        font-size: 11px;
+        flex-shrink: 0;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+        .announcement-item {
+            padding: 12px 16px;
+        }
+
+        .announcement-title {
+            font-size: 12px;
+        }
+
+        .announcement-title-row {
+            gap: 6px;
+        }
+    }
+</style>
 
 {% endblock %}
