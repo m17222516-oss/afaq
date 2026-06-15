@@ -1,0 +1,1157 @@
+{% extends "base.html" %} {% block title %}تبليغ جديد — آفاق الفكر{% endblock %}
+{% block page_title %}نشر تبليغ جديد{% endblock %} {% block content %}
+<div style="max-width: 1000px; margin: 0 auto">
+    <div class="card">
+        <div class="card-head">
+            <h2>
+                <i class="fas fa-bullhorn" style="color: var(--accent)"></i>
+                تبليغ جديد
+            </h2>
+        </div>
+        <div class="card-body">
+            <form
+                method="POST"
+                id="announcementForm"
+                enctype="multipart/form-data"
+            >
+                <div class="form-group">
+                    <label class="form-label"
+                        >عنوان التبليغ <span class="req">*</span></label
+                    >
+                    <input
+                        name="title"
+                        type="text"
+                        class="form-control"
+                        id="titleInput"
+                        placeholder="أدخل عنواناً واضحاً ومختصراً"
+                        required
+                    />
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label"
+                            >القسم <span class="req">*</span></label
+                        >
+                        <select
+                            name="department_id"
+                            class="form-control"
+                            required
+                        >
+                            <option value="">— اختر القسم —</option>
+                            {% if session.role == 'superadmin' %}
+                            <option value="all">📢 جميع الأقسام والدوائر</option>
+                            {% endif %}
+                            {% for d in departments %}
+                            <option value="{{ d.id }}">{{ d.name_ar }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">الأولوية</label>
+                        <select
+                            name="priority"
+                            class="form-control"
+                            id="prioritySelect"
+                        >
+                            <option value="normal">● عادي</option>
+                            <option value="low">↓ منخفض</option>
+                            <option value="high">↑ مهم</option>
+                            <option value="urgent">⚡ عاجل</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Rich Text Editor Toolbar -->
+                <div class="form-group">
+                    <label class="form-label"
+                        >نص التبليغ <span class="req">*</span></label
+                    >
+
+                    <!-- Toolbar -->
+                    <div class="editor-toolbar">
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="bold"
+                            title="غامق"
+                        >
+                            <i class="fas fa-bold"></i>
+                        </button>
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="italic"
+                            title="مائل"
+                        >
+                            <i class="fas fa-italic"></i>
+                        </button>
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="underline"
+                            title="تسطير"
+                        >
+                            <i class="fas fa-underline"></i>
+                        </button>
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="strikeThrough"
+                            title="يتوسطه خط"
+                        >
+                            <i class="fas fa-strikethrough"></i>
+                        </button>
+                        <span class="toolbar-divider"></span>
+
+                        <select
+                            class="toolbar-select"
+                            data-command="fontSize"
+                            title="حجم الخط"
+                        >
+                            <option value="1">صغير جداً</option>
+                            <option value="2">صغير</option>
+                            <option value="3" selected>عادي</option>
+                            <option value="4">متوسط</option>
+                            <option value="5">كبير</option>
+                            <option value="6">كبير جداً</option>
+                            <option value="7">ضخم</option>
+                        </select>
+
+                        <select
+                            class="toolbar-select"
+                            data-command="fontName"
+                            title="نوع الخط"
+                        >
+                            <option value="Arial">Arial</option>
+                            <option value="'Tajawal', sans-serif" selected>
+                                Tajawal
+                            </option>
+                            <option value="'Times New Roman'">
+                                Times New Roman
+                            </option>
+                            <option value="'Courier New'">Courier New</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Verdana">Verdana</option>
+                        </select>
+
+                        <span class="toolbar-divider"></span>
+
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="justifyRight"
+                            title="محاذاة لليمين"
+                        >
+                            <i class="fas fa-align-right"></i>
+                        </button>
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="justifyCenter"
+                            title="محاذاة للوسط"
+                        >
+                            <i class="fas fa-align-center"></i>
+                        </button>
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="justifyLeft"
+                            title="محاذاة لليسار"
+                        >
+                            <i class="fas fa-align-left"></i>
+                        </button>
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="justifyFull"
+                            title="محاذاة كاملة"
+                        >
+                            <i class="fas fa-align-justify"></i>
+                        </button>
+
+                        <span class="toolbar-divider"></span>
+
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="insertUnorderedList"
+                            title="قائمة نقطية"
+                        >
+                            <i class="fas fa-list-ul"></i>
+                        </button>
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="insertOrderedList"
+                            title="قائمة رقمية"
+                        >
+                            <i class="fas fa-list-ol"></i>
+                        </button>
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="outdent"
+                            title="تقليص المسافة"
+                        >
+                            <i class="fas fa-outdent"></i>
+                        </button>
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="indent"
+                            title="زيادة المسافة"
+                        >
+                            <i class="fas fa-indent"></i>
+                        </button>
+
+                        <span class="toolbar-divider"></span>
+
+                        <input
+                            type="color"
+                            class="toolbar-color"
+                            data-command="foreColor"
+                            title="لون النص"
+                            value="#000000"
+                        />
+                        <input
+                            type="color"
+                            class="toolbar-color"
+                            data-command="backColor"
+                            title="لون الخلفية"
+                            value="#ffffff"
+                        />
+
+                        <span class="toolbar-divider"></span>
+
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="createLink"
+                            title="إضافة رابط"
+                        >
+                            <i class="fas fa-link"></i>
+                        </button>
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="unlink"
+                            title="إزالة الرابط"
+                        >
+                            <i class="fas fa-unlink"></i>
+                        </button>
+
+                        <!-- Image Upload Button -->
+                        <label class="toolbar-btn" style="cursor: pointer">
+                            <i class="fas fa-image"></i>
+                            <span>إدراج صورة</span>
+                            <input
+                                type="file"
+                                id="inlineImageUpload"
+                                accept="image/jpeg,image/png,image/gif,image/webp"
+                                style="display: none"
+                            />
+                        </label>
+
+                        <span class="toolbar-divider"></span>
+
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="undo"
+                            title="تراجع"
+                        >
+                            <i class="fas fa-undo"></i>
+                        </button>
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="redo"
+                            title="إعادة"
+                        >
+                            <i class="fas fa-redo"></i>
+                        </button>
+
+                        <span class="toolbar-divider"></span>
+
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="removeFormat"
+                            title="إزالة التنسيق"
+                        >
+                            <i class="fas fa-eraser"></i>
+                        </button>
+                        <button
+                            type="button"
+                            class="toolbar-btn"
+                            data-command="showHTML"
+                            title="عرض/إخفاء HTML"
+                        >
+                            <i class="fas fa-code"></i>
+                        </button>
+                    </div>
+
+                    <!-- Editor Content -->
+                    <div
+                        id="editor"
+                        class="rich-editor"
+                        contenteditable="true"
+                        placeholder="اكتب نص التبليغ هنا..."
+                    ></div>
+                    <textarea
+                        name="body"
+                        id="bodyInput"
+                        style="display: none"
+                    ></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label
+                        style="
+                            display: flex;
+                            align-items: center;
+                            gap: 9px;
+                            cursor: pointer;
+                            font-size: 13px;
+                            color: var(--text-2);
+                        "
+                    >
+                        <input
+                            type="checkbox"
+                            name="is_pinned"
+                            style="
+                                width: 16px;
+                                height: 16px;
+                                accent-color: var(--accent);
+                                cursor: pointer;
+                            "
+                        />
+                        <i
+                            class="fas fa-thumbtack"
+                            style="color: var(--accent)"
+                        ></i>
+                        تثبيت التبليغ في الأعلى
+                    </label>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 8px">
+                    <button type="submit" class="btn btn-accent" id="submitBtn">
+                        <i class="fas fa-paper-plane"></i> نشر التبليغ
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-ghost"
+                        onclick="showPreview()"
+                    >
+                        <i class="fas fa-eye"></i> معاينة
+                    </button>
+                    <a
+                        href="{{ url_for('announcements.index') }}"
+                        class="btn btn-ghost"
+                        >إلغاء</a
+                    >
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Image Size Modal -->
+<div id="imageSizeModal" class="image-modal" style="display: none">
+    <div class="image-modal-content">
+        <div class="image-modal-header">
+            <h3><i class="fas fa-image"></i> تعديل حجم الصورة</h3>
+            <button class="image-modal-close" onclick="closeImageModal()">
+                &times;
+            </button>
+        </div>
+        <div class="image-modal-body">
+            <div class="image-preview-container">
+                <img id="modalPreviewImage" alt="Preview" />
+            </div>
+            <div class="size-controls">
+                <div class="size-control">
+                    <label>العرض (px)</label>
+                    <input
+                        type="number"
+                        id="imageWidth"
+                        class="form-control"
+                        value="500"
+                        min="50"
+                        max="1200"
+                        step="10"
+                    />
+                </div>
+                <div class="size-control">
+                    <label>الارتفاع (px)</label>
+                    <input
+                        type="number"
+                        id="imageHeight"
+                        class="form-control"
+                        value="auto"
+                        placeholder="تلقائي"
+                        step="10"
+                    />
+                </div>
+                <div class="size-control">
+                    <label>
+                        <input type="checkbox" id="keepAspectRatio" checked />
+                        الحفاظ على النسبة
+                    </label>
+                </div>
+                <div class="size-presets">
+                    <label>حجم مسبق:</label>
+                    <button
+                        type="button"
+                        class="btn-sm btn-ghost"
+                        onclick="setPresetSize(200)"
+                    >
+                        صغير (200px)
+                    </button>
+                    <button
+                        type="button"
+                        class="btn-sm btn-ghost"
+                        onclick="setPresetSize(400)"
+                    >
+                        متوسط (400px)
+                    </button>
+                    <button
+                        type="button"
+                        class="btn-sm btn-ghost"
+                        onclick="setPresetSize(600)"
+                    >
+                        كبير (600px)
+                    </button>
+                    <button
+                        type="button"
+                        class="btn-sm btn-ghost"
+                        onclick="setPresetSize(800)"
+                    >
+                        كامل (800px)
+                    </button>
+                    <button
+                        type="button"
+                        class="btn-sm btn-ghost"
+                        onclick="setOriginalSize()"
+                    >
+                        الحجم الأصلي
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="image-modal-footer">
+            <button
+                type="button"
+                class="btn btn-accent"
+                onclick="insertImageWithSize()"
+            >
+                إدراج الصورة
+            </button>
+            <button
+                type="button"
+                class="btn btn-ghost"
+                onclick="closeImageModal()"
+            >
+                إلغاء
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div id="previewModal" class="preview-modal" style="display: none">
+    <div class="preview-modal-content">
+        <div class="preview-modal-header">
+            <h3><i class="fas fa-eye"></i> معاينة التبليغ</h3>
+            <button class="preview-close" onclick="closePreview()">
+                &times;
+            </button>
+        </div>
+        <div class="preview-modal-body">
+            <div class="preview-badge-area"></div>
+            <h2 class="preview-title"></h2>
+            <div class="preview-meta"></div>
+            <div class="preview-content"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .editor-toolbar {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--r-sm) var(--r-sm) 0 0;
+        padding: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        align-items: center;
+        position: sticky;
+        top: 56px;
+        z-index: 50;
+    }
+
+    .toolbar-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: var(--r-sm);
+        padding: 6px 10px;
+        cursor: pointer;
+        color: var(--text);
+        font-size: 13px;
+        transition: var(--t);
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .toolbar-btn:hover {
+        background: var(--bg-hover);
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
+    .toolbar-select {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--r-sm);
+        padding: 6px 8px;
+        color: var(--text);
+        font-size: 12px;
+        cursor: pointer;
+        font-family: inherit;
+    }
+
+    .toolbar-color {
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-sm);
+        cursor: pointer;
+        padding: 2px;
+        background: var(--bg-card);
+    }
+
+    .toolbar-divider {
+        width: 1px;
+        height: 24px;
+        background: var(--border);
+        margin: 0 4px;
+    }
+
+    .rich-editor {
+        min-height: 400px;
+        max-height: 500px;
+        overflow-y: auto;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-top: none;
+        border-radius: 0 0 var(--r-sm) var(--r-sm);
+        padding: 16px;
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.8;
+        direction: rtl;
+        text-align: right;
+    }
+
+    .rich-editor:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px var(--accent-dim);
+    }
+
+    .rich-editor img {
+        max-width: 100%;
+        height: auto;
+        border-radius: var(--r-sm);
+        margin: 10px 0;
+        cursor: pointer;
+        border: 2px solid transparent;
+    }
+
+    .rich-editor img:hover {
+        border-color: var(--accent);
+        box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    /* Image Modal */
+    .image-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 1001;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(8px);
+    }
+
+    .image-modal-content {
+        background: var(--bg-card);
+        border-radius: var(--r-lg);
+        max-width: 500px;
+        width: 90%;
+        max-height: 90vh;
+        overflow: hidden;
+        border: 1px solid var(--border-2);
+    }
+
+    .image-modal-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .image-modal-header h3 {
+        font-size: 16px;
+        margin: 0;
+        color: var(--text-white);
+    }
+
+    .image-modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: var(--text-3);
+    }
+
+    .image-modal-close:hover {
+        color: var(--accent);
+    }
+
+    .image-modal-body {
+        padding: 20px;
+    }
+
+    .image-preview-container {
+        text-align: center;
+        margin-bottom: 20px;
+        background: var(--bg-3);
+        border-radius: var(--r-sm);
+        padding: 20px;
+    }
+
+    .image-preview-container img {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: var(--r-sm);
+    }
+
+    .size-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .size-control {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .size-control label {
+        width: 80px;
+        font-size: 12px;
+        color: var(--text-2);
+    }
+
+    .size-control input {
+        flex: 1;
+    }
+
+    .size-presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+    }
+
+    .size-presets label {
+        font-size: 12px;
+        color: var(--text-2);
+    }
+
+    .image-modal-footer {
+        padding: 16px 20px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+
+    /* Preview Modal */
+    .preview-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(8px);
+    }
+
+    .preview-modal-content {
+        background: var(--bg-card);
+        border-radius: var(--r-lg);
+        max-width: 800px;
+        width: 90%;
+        max-height: 80vh;
+        overflow: hidden;
+        border: 1px solid var(--border-2);
+    }
+
+    .preview-modal-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .preview-modal-header h3 {
+        font-size: 16px;
+        margin: 0;
+        color: var(--text-white);
+    }
+
+    .preview-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: var(--text-3);
+    }
+
+    .preview-close:hover {
+        color: var(--accent);
+    }
+
+    .preview-modal-body {
+        padding: 20px;
+        overflow-y: auto;
+    }
+
+    .preview-title {
+        font-size: 20px;
+        font-weight: 800;
+        margin-bottom: 12px;
+        color: var(--text-white);
+    }
+
+    .preview-meta {
+        font-size: 11px;
+        color: var(--text-3);
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 16px;
+    }
+
+    .preview-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: var(--r-sm);
+        margin: 10px 0;
+    }
+
+    .loading-indicator {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+
+<script>
+    // Rich Text Editor Implementation
+    const editor = document.getElementById("editor");
+    const bodyInput = document.getElementById("bodyInput");
+    const titleInput = document.getElementById("titleInput");
+    const prioritySelect = document.getElementById("prioritySelect");
+
+    let savedRange = null;
+    let pendingImageFile = null;
+    let originalImageDimensions = { width: 0, height: 0 };
+
+    function saveCursorPosition() {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            savedRange = selection.getRangeAt(0).cloneRange();
+        }
+    }
+
+    function restoreCursorPosition() {
+        if (savedRange) {
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(savedRange);
+            savedRange = null;
+        }
+    }
+
+    // Initialize editor content from localStorage
+    if (localStorage.getItem("announcement_draft")) {
+        editor.innerHTML = localStorage.getItem("announcement_draft");
+    }
+
+    editor.addEventListener("input", function () {
+        localStorage.setItem("announcement_draft", editor.innerHTML);
+    });
+    editor.addEventListener("mouseup", saveCursorPosition);
+    editor.addEventListener("keyup", saveCursorPosition);
+    editor.addEventListener("click", saveCursorPosition);
+
+    titleInput.addEventListener("input", function () {
+        localStorage.setItem("announcement_title", titleInput.value);
+    });
+
+    function execCommand(command, value = null) {
+        editor.focus();
+        restoreCursorPosition();
+        document.execCommand(command, false, value);
+        editor.focus();
+        localStorage.setItem("announcement_draft", editor.innerHTML);
+    }
+
+    // Setup toolbar buttons
+    document.querySelectorAll(".toolbar-btn").forEach((btn) => {
+        // Skip the image-upload label: it must keep its native behavior
+        // of opening the file picker for its wrapped <input type="file">
+        if (btn.tagName === "LABEL") return;
+
+        btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            const command = btn.dataset.command;
+
+            if (command === "createLink") {
+                const url = prompt("أدخل رابط URL:", "https://");
+                if (url) execCommand("createLink", url);
+            } else if (command === "showHTML") {
+                const html = prompt("عرض HTML الخام:", editor.innerHTML);
+                if (html !== null) editor.innerHTML = html;
+            } else if (command === "undo") {
+                document.execCommand("undo");
+                localStorage.setItem("announcement_draft", editor.innerHTML);
+            } else if (command === "redo") {
+                document.execCommand("redo");
+                localStorage.setItem("announcement_draft", editor.innerHTML);
+            } else {
+                execCommand(command);
+            }
+        });
+    });
+
+    // Setup select dropdowns
+    document.querySelectorAll(".toolbar-select").forEach((select) => {
+        select.addEventListener("change", (e) => {
+            execCommand(select.dataset.command, select.value);
+        });
+    });
+
+    // Setup color pickers
+    document.querySelectorAll(".toolbar-color").forEach((colorPicker) => {
+        colorPicker.addEventListener("change", (e) => {
+            execCommand(colorPicker.dataset.command, colorPicker.value);
+        });
+    });
+
+    // Image upload with size control
+    const inlineImageInput = document.getElementById("inlineImageUpload");
+
+    inlineImageInput.addEventListener("change", function (e) {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith("image/")) {
+            // Check file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert("حجم الصورة كبير جداً. الحد الأقصى هو 5 ميجابايت.");
+                inlineImageInput.value = "";
+                return;
+            }
+
+            pendingImageFile = file;
+
+            // Load image to get original dimensions
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const img = new Image();
+                img.onload = function () {
+                    originalImageDimensions = {
+                        width: img.width,
+                        height: img.height,
+                    };
+
+                    // Show size modal
+                    const modal = document.getElementById("imageSizeModal");
+                    const previewImg =
+                        document.getElementById("modalPreviewImage");
+                    previewImg.src = event.target.result;
+
+                    // Set default width (max 600px)
+                    let defaultWidth = Math.min(
+                        originalImageDimensions.width,
+                        600,
+                    );
+                    document.getElementById("imageWidth").value = defaultWidth;
+                    document.getElementById("imageHeight").value = "auto";
+
+                    modal.style.display = "flex";
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        inlineImageInput.value = "";
+    });
+
+    function setPresetSize(width) {
+        document.getElementById("imageWidth").value = width;
+        document.getElementById("imageHeight").value = "auto";
+    }
+
+    function setOriginalSize() {
+        document.getElementById("imageWidth").value =
+            originalImageDimensions.width;
+        document.getElementById("imageHeight").value = "auto";
+    }
+
+    function closeImageModal() {
+        document.getElementById("imageSizeModal").style.display = "none";
+        pendingImageFile = null;
+    }
+
+    function insertImageWithSize() {
+        if (!pendingImageFile) return;
+
+        const width = document.getElementById("imageWidth").value;
+        const height = document.getElementById("imageHeight").value;
+        const keepAspect = document.getElementById("keepAspectRatio").checked;
+
+        // Save cursor position (keep a copy; restore happens after upload completes)
+        saveCursorPosition();
+        const insertionRange = savedRange;
+
+        // Create FormData for upload
+        const formData = new FormData();
+        formData.append("image", pendingImageFile);
+
+        // Close the modal immediately so it doesn't hold focus
+        closeImageModal();
+
+        // Upload to server
+        fetch('{{ url_for("announcements.upload_image") }}', {
+            method: "POST",
+            body: formData,
+        })
+            .then((response) => response.json())
+            .then((data) => {
+                if (data.success) {
+                    // Build the image element directly via DOM (more reliable
+                    // than execCommand, which can fail once the modal closes
+                    // and the editor loses focus/selection)
+                    const imgEl = document.createElement("img");
+                    imgEl.src = data.url;
+                    imgEl.alt = "Uploaded image";
+                    imgEl.style.borderRadius = "var(--r-sm)";
+                    imgEl.style.margin = "10px 0";
+                    if (width && width !== "auto") {
+                        imgEl.style.width = width + "px";
+                        imgEl.setAttribute("width", width);
+                    } else {
+                        imgEl.style.maxWidth = "100%";
+                    }
+                    if (height && height !== "auto" && !keepAspect) {
+                        imgEl.style.height = height + "px";
+                        imgEl.setAttribute("height", height);
+                    } else {
+                        imgEl.style.height = "auto";
+                    }
+                    // Wrap so it sits on its own line
+                    const wrapper = document.createElement("div");
+                    wrapper.appendChild(imgEl);
+
+                    editor.focus();
+
+                    let range = insertionRange;
+                    const selection = window.getSelection();
+
+                    // Validate that the saved range is still inside the editor
+                    if (
+                        !range ||
+                        !editor.contains(range.commonAncestorContainer)
+                    ) {
+                        range = document.createRange();
+                        range.selectNodeContents(editor);
+                        range.collapse(false);
+                    }
+
+                    range.deleteContents();
+                    range.insertNode(wrapper);
+
+                    // Move cursor after the inserted image
+                    range.setStartAfter(wrapper);
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+
+                    localStorage.setItem(
+                        "announcement_draft",
+                        editor.innerHTML,
+                    );
+                } else {
+                    alert("خطأ في رفع الصورة: " + data.error);
+                }
+            })
+            .catch((error) => {
+                console.error("Error:", error);
+                alert("حدث خطأ أثناء رفع الصورة");
+            })
+            .finally(() => {
+                pendingImageFile = null;
+            });
+    }
+
+    // Drag and drop for images
+    editor.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        editor.style.borderColor = "var(--accent)";
+    });
+
+    editor.addEventListener("dragleave", (e) => {
+        e.preventDefault();
+        editor.style.borderColor = "";
+    });
+
+    editor.addEventListener("drop", (e) => {
+        e.preventDefault();
+        editor.style.borderColor = "";
+
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith("image/")) {
+            pendingImageFile = file;
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const img = new Image();
+                img.onload = function () {
+                    originalImageDimensions = {
+                        width: img.width,
+                        height: img.height,
+                    };
+
+                    const modal = document.getElementById("imageSizeModal");
+                    const previewImg =
+                        document.getElementById("modalPreviewImage");
+                    previewImg.src = event.target.result;
+                    document.getElementById("imageWidth").value = Math.min(
+                        originalImageDimensions.width,
+                        600,
+                    );
+                    document.getElementById("imageHeight").value = "auto";
+                    modal.style.display = "flex";
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Preview functionality
+    function showPreview() {
+        const title = titleInput.value || "عنوان التبليغ";
+        const priority =
+            prioritySelect.options[prioritySelect.selectedIndex].text;
+        const priorityValue = prioritySelect.value;
+        const content = editor.innerHTML || "لا يوجد محتوى";
+
+        const modal = document.getElementById("previewModal");
+        const previewTitle = modal.querySelector(".preview-title");
+        const previewContent = modal.querySelector(".preview-content");
+        const previewMeta = modal.querySelector(".preview-meta");
+        const previewBadge = modal.querySelector(".preview-badge-area");
+
+        previewTitle.textContent = title;
+        previewContent.innerHTML = content;
+
+        const now = new Date();
+        const formattedDate = now.toISOString().slice(0, 10);
+        const formattedTime = now.toTimeString().slice(0, 5);
+        previewMeta.innerHTML = `
+    <i class="fas fa-user"></i> {{ session.full_name }} &nbsp;&nbsp;
+    <i class="fas fa-calendar"></i> ${formattedDate} ${formattedTime}
+  `;
+
+        let badgeClass = "b-normal";
+        if (priorityValue === "urgent") badgeClass = "b-urgent";
+        else if (priorityValue === "high") badgeClass = "b-high";
+        else if (priorityValue === "low") badgeClass = "b-low";
+
+        previewBadge.innerHTML = `<span class="badge ${badgeClass}">${priority}</span>`;
+        modal.style.display = "flex";
+    }
+
+    function closePreview() {
+        document.getElementById("previewModal").style.display = "none";
+    }
+
+    // Form submission
+    document
+        .getElementById("announcementForm")
+        .addEventListener("submit", function (e) {
+            // Get the HTML content directly without escaping
+            bodyInput.value = editor.innerHTML;
+            console.log("Saving HTML:", bodyInput.value); // Debug log
+            localStorage.removeItem("announcement_draft");
+            localStorage.removeItem("announcement_title");
+        });
+
+    // Load saved title
+    if (localStorage.getItem("announcement_title")) {
+        titleInput.value = localStorage.getItem("announcement_title");
+    }
+
+    // Close modals on escape
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+            closePreview();
+            closeImageModal();
+        }
+    });
+
+    // Click outside to close
+    document
+        .getElementById("previewModal")
+        .addEventListener("click", function (e) {
+            if (e.target === this) closePreview();
+        });
+    document
+        .getElementById("imageSizeModal")
+        .addEventListener("click", function (e) {
+            if (e.target === this) closeImageModal();
+        });
+
+    editor.focus();
+</script>
+{% endblock %}

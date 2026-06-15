@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% block title %}إدارة النظام — آفاق الفكر{% endblock %}
+{% block page_title %}إدارة النظام{% endblock %}
+
+{% block content %}
+<div class="tabs-wrap">
+<div class="tabs">
+  <button class="tab-btn active" data-tab="t-users"><i class="fas fa-users"></i> المستخدمون ({{ users|length }})</button>
+  <button class="tab-btn" data-tab="t-depts"><i class="fas fa-building"></i> الأقسام ({{ departments|length }})</button>
+  <button class="tab-btn" data-tab="t-policies"><i class="fas fa-shield-alt"></i> السياسات</button>
+  <button class="tab-btn" data-tab="t-logs"><i class="fas fa-history"></i> سجل النشاط</button>
+</div>
+
+<!-- USERS -->
+<div id="t-users" class="tab-content active">
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-head"><h2><i class="fas fa-user-plus" style="color:var(--green)"></i> إضافة مستخدم</h2></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('admin.create_user') }}">
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label class="form-label">الاسم <span class="req">*</span></label>
+            <input name="full_name" type="text" class="form-control" placeholder="الاسم الكامل" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">اسم المستخدم <span class="req">*</span></label>
+            <input name="username" type="text" class="form-control" placeholder="username" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">كلمة المرور <span class="req">*</span></label>
+            <input name="password" type="password" class="form-control" placeholder="6+ أحرف" required minlength="6">
+          </div>
+          <div class="form-group">
+            <label class="form-label">الصلاحية <span class="req">*</span></label>
+            <select name="role" class="form-control" required>
+              <option value="">— اختر —</option>
+              <option value="manager">مدير قسم</option>
+              <option value="employee">موظف</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">القسم</label>
+            <select name="department_id" class="form-control">
+              <option value="">— بدون قسم —</option>
+              {% for d in departments %}
+              <option value="{{ d.id }}">{{ d.name_ar }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group" style="display:flex;align-items:flex-end">
+            <button type="submit" class="btn btn-primary btn-block">
+              <i class="fas fa-plus"></i> إضافة
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2><i class="fas fa-users"></i> المستخدمون</h2>
+      <input id="tblSearch" type="text" class="form-control" placeholder="بحث..." style="width:180px">
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr>
+          <th>الاسم</th><th>المستخدم</th><th>الصلاحية</th>
+          <th>القسم</th><th>آخر دخول</th><th>الحالة</th><th>إجراءات</th>
+        </tr></thead>
+        <tbody>
+        {% for u in users %}
+        <tr class="s-row">
+          <td style="font-weight:600;font-size:12.5px">{{ u.full_name }}</td>
+          <td><code style="font-size:11.5px;background:#f3f4f6;padding:1px 7px;border-radius:4px">{{ u.username }}</code></td>
+          <td><span class="badge b-{{ u.role }}">
+            {% if u.role=='superadmin' %}مدير النظام
+            {% elif u.role=='manager' %}مدير قسم
+            {% else %}موظف{% endif %}
+          </span></td>
+          <td style="font-size:12px">{{ u.dept_name or '—' }}</td>
+          <td style="font-size:11px;color:var(--text-sm)">
+            {{ u.last_login[:16].replace('T',' ') if u.last_login else 'لم يسجل' }}
+          </td>
+          <td>
+            {% if u.is_active %}
+            <span style="color:var(--green);font-size:12px"><i class="fas fa-circle" style="font-size:8px"></i> مفعل</span>
+            {% else %}
+            <span style="color:var(--red);font-size:12px"><i class="fas fa-circle" style="font-size:8px"></i> موقوف</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if u.role != 'superadmin' %}
+            <div style="display:flex;gap:5px">
+              <form method="POST" action="{{ url_for('admin.toggle_user', user_id=u.id) }}">
+                <button class="btn btn-sm btn-ghost" title="{% if u.is_active %}إيقاف{% else %}تفعيل{% endif %}">
+                  <i class="fas {% if u.is_active %}fa-user-slash{% else %}fa-user-check{% endif %}"></i>
+                </button>
+              </form>
+              <button class="btn btn-sm btn-ghost" data-open="resetModal"
+                      onclick="setReset({{ u.id }},'{{ u.full_name }}')" title="تغيير كلمة المرور">
+                <i class="fas fa-key"></i>
+              </button>
+              <form method="POST" action="{{ url_for('admin.delete_user', user_id=u.id) }}"
+                    onsubmit="return confirm('هل أنت متأكد من حذف المستخدم {{ u.full_name }}؟ سيتم حذف جميع تبليغاته وتعليقاته.');">
+                <button class="btn btn-sm btn-ghost" title="حذف المستخدم" style="color:var(--red)">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </form>
+            </div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- DEPARTMENTS -->
+<div id="t-depts" class="tab-content">
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-head"><h2><i class="fas fa-plus" style="color:var(--green)"></i> إضافة قسم جديد</h2></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('admin.create_department') }}">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">الاسم الإنجليزي <span class="req">*</span></label>
+            <input name="name" type="text" class="form-control" placeholder="e.g. hr" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">الاسم العربي <span class="req">*</span></label>
+            <input name="name_ar" type="text" class="form-control" placeholder="مثال: قسم الموارد البشرية" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">الأيقونة (Font Awesome)</label>
+            <input name="icon" type="text" class="form-control" value="fas fa-building" placeholder="fas fa-building">
+          </div>
+          <div class="form-group">
+            <label class="form-label">اللون</label>
+            <input name="color" type="color" class="form-control" value="#1e5bd4" style="height:42px;cursor:pointer">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> إضافة القسم</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2><i class="fas fa-building"></i> الأقسام الحالية</h2></div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>القسم</th><th>الاسم الإنجليزي</th><th>الأيقونة</th><th>اللون</th><th>حذف</th></tr></thead>
+        <tbody>
+        {% for d in departments %}
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:10px;height:10px;border-radius:50%;background:{{ d.color }};flex-shrink:0"></div>
+              <b style="font-size:12.5px">{{ d.name_ar }}</b>
+            </div>
+          </td>
+          <td><code style="font-size:11.5px">{{ d.name }}</code></td>
+          <td style="font-size:12px"><i class="{{ d.icon }}"></i> {{ d.icon }}</td>
+          <td><span style="background:{{ d.color }};color:#fff;font-size:11px;padding:2px 11px;border-radius:10px">{{ d.color }}</span></td>
+          <td>
+            <form method="POST" action="{{ url_for('admin.delete_department', dept_id=d.id) }}"
+                  data-confirm="حذف قسم {{ d.name_ar }}؟">
+              <button class="btn btn-sm btn-ghost" style="color:var(--red);border-color:#fecaca">
+                <i class="fas fa-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- POLICIES -->
+<div id="t-policies" class="tab-content">
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-head"><h2><i class="fas fa-plus" style="color:var(--green)"></i> إضافة سياسة</h2></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('policies.create') }}">
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label class="form-label">القسم <span class="req">*</span></label>
+            <select name="department_id" class="form-control" required>
+              <option value="">— اختر —</option>
+              {% for d in departments %}<option value="{{ d.id }}">{{ d.name_ar }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group col-full" style="grid-column:span 2">
+            <label class="form-label">عنوان السياسة <span class="req">*</span></label>
+            <input name="title" type="text" class="form-control" placeholder="عنوان السياسة" required>
+          </div>
+          <div class="form-group col-full" style="grid-column:1/-1">
+            <label class="form-label">محتوى السياسة <span class="req">*</span></label>
+            <textarea name="body" class="form-control" style="min-height:90px" required placeholder="نص السياسة..."></textarea>
+          </div>
+          <div class="form-group" style="display:flex;align-items:flex-end">
+            <button type="submit" class="btn btn-accent btn-block"><i class="fas fa-plus"></i> إضافة</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h2><i class="fas fa-shield-alt" style="color:var(--indigo-light)"></i> السياسات الحالية</h2></div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>العنوان</th><th>القسم</th><th>الكاتب</th><th>التاريخ</th><th>حذف</th></tr></thead>
+        <tbody>
+        {% for p in policies %}
+        <tr>
+          <td style="font-weight:600;font-size:12.5px">{{ p.title }}</td>
+          <td><span class="badge b-dept">{{ p.dept_name }}</span></td>
+          <td style="font-size:12px">{{ p.author }}</td>
+          <td style="font-size:11px">{{ p.created_at[:10] }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('policies.delete', policy_id=p.id) }}" data-confirm="حذف هذه السياسة؟">
+              <button class="btn btn-sm btn-ghost" style="color:var(--red);border-color:rgba(244,63,94,.25)"><i class="fas fa-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:24px">لا توجد سياسات</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- LOGS -->
+<div id="t-logs" class="tab-content">
+  <div class="card">
+    <div class="card-head"><h2><i class="fas fa-history"></i> آخر 50 إجراء</h2></div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>الوقت</th><th>المستخدم</th><th>الإجراء</th><th>التفاصيل</th><th>IP</th></tr></thead>
+        <tbody>
+        {% for l in logs %}
+        <tr>
+          <td style="font-size:11px;white-space:nowrap">{{ l.created_at[:16].replace('T',' ') }}</td>
+          <td style="font-size:12px">{{ l.full_name or '—' }}</td>
+          <td><code style="font-size:11px;background:#f3f4f6;padding:1px 7px;border-radius:4px">{{ l.action }}</code></td>
+          <td style="font-size:11.5px;color:var(--text-sm)">{{ l.details or '—' }}</td>
+          <td style="font-size:11px;font-family:monospace;color:var(--text-sm)">{{ l.ip_address }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Reset Modal -->
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function setReset(id, name){
+  document.getElementById('resetForm').action = `/admin/users/${id}/reset_password`;
+  document.getElementById('resetName').textContent = `تغيير كلمة مرور: ${name}`;
+}
+</script>
+{% endblock %}

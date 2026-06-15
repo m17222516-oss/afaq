@@ -1,0 +1,333 @@
+{% extends "base.html" %} {% block title %}التبليغات — آفاق الفكر{% endblock %}
+{% block page_title %}التبليغات{% endblock %} {% block content %}
+
+<form method="GET" action="{{ url_for('announcements.index') }}">
+    <div class="filter-bar">
+        <div class="search-wrap">
+            <i class="fas fa-search"></i>
+            <input
+                name="q"
+                type="text"
+                class="search-input"
+                placeholder="بحث في التبليغات..."
+                value="{{ search }}"
+            />
+        </div>
+        <div class="filter-pills">
+            <a
+                href="{{ url_for('announcements.index') }}"
+                class="pill {% if not priority_filter %}on{% endif %}"
+                >الكل</a
+            >
+            <a
+                href="{{ url_for('announcements.index', priority='urgent') }}"
+                class="pill urgent {% if priority_filter=='urgent' %}on{% endif %}"
+                >⚡ عاجل</a
+            >
+            <a
+                href="{{ url_for('announcements.index', priority='high') }}"
+                class="pill high {% if priority_filter=='high' %}on{% endif %}"
+                >↑ مهم</a
+            >
+            <a
+                href="{{ url_for('announcements.index', priority='normal') }}"
+                class="pill normal {% if priority_filter=='normal' %}on{% endif %}"
+                >عادي</a
+            >
+            <a
+                href="{{ url_for('announcements.index', priority='low') }}"
+                class="pill low {% if priority_filter=='low' %}on{% endif %}"
+                >↓ منخفض</a
+            >
+        </div>
+        {% if session.role in ['manager','superadmin'] %}
+        <a href="{{ url_for('announcements.create') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> تبليغ جديد
+        </a>
+        {% endif %}
+    </div>
+</form>
+
+{% if items %} {% set pinned_items = items|selectattr('is_pinned')|list %} {%
+set normal_items = items|rejectattr('is_pinned')|list %}
+
+<!-- PINNED ANNOUNCEMENTS SECTION -->
+{% if pinned_items %}
+<div class="pinned-section">
+    <div class="section-header">
+        <i class="fas fa-thumbtack"></i>
+        <h3>التبليغات المثبتة</h3>
+        <span class="badge">{{ pinned_items|length }}</span>
+    </div>
+
+    {% for ann in pinned_items %}
+    <div
+        class="ann-item-full pinned"
+        style="--dept-color:{{ ann.dept_color or '#00a6fb' }}"
+    >
+        <div class="ann-full-header">
+            <div class="ann-badges">
+                <span class="pin-badge"
+                    ><i class="fas fa-thumbtack"></i> مثبت</span
+                >
+                <span class="badge b-{{ ann.priority }}">
+                    {% if ann.priority=='urgent' %}<i class="fas fa-bolt"></i>
+                    عاجل {% elif ann.priority=='high' %}<i
+                        class="fas fa-arrow-up"
+                    ></i>
+                    مهم {% elif ann.priority=='low' %}<i
+                        class="fas fa-arrow-down"
+                    ></i>
+                    منخفض {% else %}<i class="fas fa-circle"></i> عادي{% endif
+                    %}
+                </span>
+                {% if session.role=='superadmin' %}
+                <span class="badge b-dept">{{ ann.dept_name }}</span>
+                {% endif %}
+            </div>
+            {% if session.role in ['manager','superadmin'] %}
+            <form
+                method="POST"
+                action="{{ url_for('announcements.delete', ann_id=ann.id) }}"
+                data-confirm="حذف هذا التبليغ؟"
+                class="inline-form"
+            >
+                <button class="btn btn-sm btn-ghost">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </form>
+            {% endif %}
+        </div>
+
+        <h2 class="ann-full-title">{{ ann.title }}</h2>
+
+        <div class="ann-full-meta">
+            <span><i class="fas fa-user"></i> {{ ann.author }}</span>
+            <span
+                ><i class="fas fa-calendar-alt"></i> {{ ann.created_at[:10]
+                }}</span
+            >
+            <span
+                ><i class="fas fa-clock"></i> {{ ann.created_at[11:16] }}</span
+            >
+            <span
+                ><i class="fas fa-comment"></i> {{ ann.comment_count }}
+                تعليق</span
+            >
+        </div>
+
+        <div class="ann-full-body">{{ ann.body|safe }}</div>
+
+        <div class="ann-full-footer">
+            <a
+                href="{{ url_for('announcements.detail', ann_id=ann.id) }}"
+                class="btn btn-accent btn-sm"
+            >
+                <i class="fas fa-comments"></i> عرض التعليقات ({{
+                ann.comment_count }})
+            </a>
+            <div class="ann-actions">
+                {% if session.role in ['manager','superadmin'] %}
+                <a
+                    href="{{ url_for('announcements.edit', ann_id=ann.id) }}"
+                    class="btn btn-sm btn-ghost"
+                >
+                    <i class="fas fa-edit"></i> تعديل
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- LATEST ANNOUNCEMENT SECTION -->
+{% if normal_items %}
+<div class="latest-section">
+    <div class="section-header">
+        <i class="fas fa-star"></i>
+        <h3>أحدث التبليغات</h3>
+        <span class="badge">{{ normal_items|length }}</span>
+    </div>
+
+    {% set latest = normal_items[0] %}
+    <div
+        class="ann-item-full latest"
+        style="--dept-color:{{ latest.dept_color or '#00a6fb' }}"
+    >
+        <div class="ann-full-header">
+            <div class="ann-badges">
+                <span class="badge latest-badge"
+                    ><i class="fas fa-clock"></i> أحدث تبليغ</span
+                >
+                <span class="badge b-{{ latest.priority }}">
+                    {% if latest.priority=='urgent' %}<i
+                        class="fas fa-bolt"
+                    ></i>
+                    عاجل {% elif latest.priority=='high' %}<i
+                        class="fas fa-arrow-up"
+                    ></i>
+                    مهم {% elif latest.priority=='low' %}<i
+                        class="fas fa-arrow-down"
+                    ></i>
+                    منخفض {% else %}<i class="fas fa-circle"></i> عادي{% endif
+                    %}
+                </span>
+                {% if session.role=='superadmin' %}
+                <span class="badge b-dept">{{ latest.dept_name }}</span>
+                {% endif %}
+            </div>
+            {% if session.role in ['manager','superadmin'] %}
+            <form
+                method="POST"
+                action="{{ url_for('announcements.delete', ann_id=latest.id) }}"
+                data-confirm="حذف هذا التبليغ؟"
+                class="inline-form"
+            >
+                <button class="btn btn-sm btn-ghost">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </form>
+            {% endif %}
+        </div>
+
+        <h2 class="ann-full-title">{{ latest.title }}</h2>
+
+        <div class="ann-full-meta">
+            <span><i class="fas fa-user"></i> {{ latest.author }}</span>
+            <span
+                ><i class="fas fa-calendar-alt"></i> {{ latest.created_at[:10]
+                }}</span
+            >
+            <span
+                ><i class="fas fa-clock"></i> {{ latest.created_at[11:16]
+                }}</span
+            >
+            <span
+                ><i class="fas fa-comment"></i> {{ latest.comment_count }}
+                تعليق</span
+            >
+        </div>
+
+        <!-- FIXED: Added |safe filter here -->
+        <div class="ann-full-body">{{ latest.body|safe }}</div>
+
+        <div class="ann-full-footer">
+            <a
+                href="{{ url_for('announcements.detail', ann_id=latest.id) }}"
+                class="btn btn-accent btn-sm"
+            >
+                <i class="fas fa-comments"></i> عرض التعليقات ({{
+                latest.comment_count }})
+            </a>
+            <div class="ann-actions">
+                {% if session.role in ['manager','superadmin'] %}
+                <a
+                    href="{{ url_for('announcements.edit', ann_id=latest.id) }}"
+                    class="btn btn-sm btn-ghost"
+                >
+                    <i class="fas fa-edit"></i> تعديل
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- REMAINING ANNOUNCEMENTS - Compact view -->
+    {% if normal_items|length > 1 %}
+    <div class="remaining-section">
+        <div class="section-subheader">
+            <i class="fas fa-list"></i>
+            <h4>التبليغات السابقة</h4>
+        </div>
+
+        {% for ann in normal_items[1:] %}
+        <div
+            class="ann-item"
+            style="--dept-color:{{ ann.dept_color or '#00a6fb' }}"
+        >
+            <div class="ann-top">
+                <div class="ann-content">
+                    <div class="ann-badges">
+                        <span class="badge b-{{ ann.priority }}">
+                            {% if ann.priority=='urgent' %}<i
+                                class="fas fa-bolt"
+                            ></i>
+                            عاجل {% elif ann.priority=='high' %}<i
+                                class="fas fa-arrow-up"
+                            ></i>
+                            مهم {% elif ann.priority=='low' %}<i
+                                class="fas fa-arrow-down"
+                            ></i>
+                            منخفض {% else %}<i class="fas fa-circle"></i> عادي{%
+                            endif %}
+                        </span>
+                        {% if session.role=='superadmin' %}
+                        <span class="badge b-dept">{{ ann.dept_name }}</span>
+                        {% endif %}
+                    </div>
+                    <a
+                        href="{{ url_for('announcements.detail', ann_id=ann.id) }}"
+                        class="ann-title-text"
+                        >{{ ann.title }}</a
+                    >
+                    <div class="ann-excerpt">
+                        {{ ann.body|striptags|truncate(160) }}
+                    </div>
+                </div>
+                {% if session.role in ['manager','superadmin'] %}
+                <form
+                    method="POST"
+                    action="{{ url_for('announcements.delete', ann_id=ann.id) }}"
+                    data-confirm="حذف هذا التبليغ؟"
+                    class="inline-form"
+                >
+                    <button class="btn btn-sm btn-ghost">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            <div class="ann-footer">
+                <span><i class="fas fa-user"></i> {{ ann.author }}</span>
+                <span
+                    ><i class="fas fa-calendar-alt"></i> {{ ann.created_at[:10]
+                    }}</span
+                >
+                <span
+                    ><i class="fas fa-comment"></i> {{ ann.comment_count
+                    }}</span
+                >
+                <a href="{{ url_for('announcements.detail', ann_id=ann.id) }}">
+                    قراءة التبليغ <i class="fas fa-arrow-left"></i>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endif %} {% else %}
+<div class="card">
+    <div class="empty">
+        <i class="fas fa-bullhorn"></i>
+        <h3>لا توجد تبليغات</h3>
+        <p>
+            {% if search %}لا توجد نتائج لـ "{{ search }}"{% else %}لم يتم نشر
+            أي تبليغ بعد{% endif %}
+        </p>
+        {% if session.role in ['manager','superadmin'] %}
+        <a
+            href="{{ url_for('announcements.create') }}"
+            class="btn btn-primary"
+            style="margin-top: 16px"
+        >
+            <i class="fas fa-plus"></i> نشر أول تبليغ
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

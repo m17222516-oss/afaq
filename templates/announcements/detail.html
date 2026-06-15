@@ -1,0 +1,173 @@
+{% extends "base.html" %} {% block title %}{{ ann.title }} — آفاق الفكر{%
+endblock %} {% block page_title %}{{ ann.title }}{% endblock %} {% block content
+%}
+
+<div class="detail-header">
+    <div class="ann-badges">
+        <span class="badge b-{{ ann.priority }}">
+            {% if ann.priority=='urgent' %}<i class="fas fa-bolt"></i> عاجل {%
+            elif ann.priority=='high' %}<i class="fas fa-arrow-up"></i> مهم {%
+            elif ann.priority=='low' %}<i class="fas fa-arrow-down"></i> منخفض
+            {% else %}<i class="fas fa-circle"></i> عادي{% endif %}
+        </span>
+        {% if session.role=='superadmin' %}
+        <span class="badge b-dept">{{ ann.dept_name }}</span>
+        {% endif %} {% if ann.is_pinned %}
+        <span class="pin-badge"><i class="fas fa-thumbtack"></i> مثبت</span>
+        {% endif %}
+    </div>
+
+    <div class="detail-title">{{ ann.title }}</div>
+
+    <div class="detail-meta">
+        <span><i class="fas fa-user"></i> {{ ann.author }}</span>
+        <span
+            ><i class="fas fa-calendar"></i> {{ ann.created_at[:10] }} {{
+            ann.created_at[11:16] }}</span
+        >
+        <span><i class="fas fa-comment"></i> {{ comments|length }} تعليق</span>
+    </div>
+</div>
+
+<div class="detail-actions">
+    {% if session.role in ['manager','superadmin'] or session.user_id ==
+    ann.user_id %}
+    <a
+        href="{{ url_for('announcements.edit', ann_id=ann.id) }}"
+        class="btn btn-primary btn-sm"
+    >
+        <i class="fas fa-edit"></i> تعديل التبليغ
+    </a>
+    {% endif %} {% if session.role in ['manager','superadmin'] %}
+    <form
+        method="POST"
+        action="{{ url_for('announcements.delete', ann_id=ann.id) }}"
+        data-confirm="هل أنت متأكد من حذف هذا التبليغ؟"
+        class="inline-form"
+        onsubmit="return confirm('هل أنت متأكد من حذف هذا التبليغ؟');"
+    >
+        <button class="btn btn-danger btn-sm">
+            <i class="fas fa-trash"></i> حذف التبليغ
+        </button>
+    </form>
+    {% endif %}
+
+    <button
+        id="reactBtn"
+        onclick="toggleReaction({{ ann.id }})"
+        class="btn btn-sm {{ 'btn-accent' if user_reacted else 'btn-ghost' }}"
+    >
+        <i class="fas fa-thumbs-up"></i>
+        <span id="reactLabel">{{ 'إلغاء التفاعل' if user_reacted else 'تفاعل' }}</span>
+        (<span id="reactCount">{{ reaction_count }}</span>)
+    </button>
+</div>
+
+<div class="detail-body-wrapper">
+    <div class="detail-body">{{ ann.body|safe }}</div>
+</div>
+
+<!-- Comments Section -->
+<div class="comments-section">
+    <div class="comments-header">
+        <h3>
+            <i class="fas fa-comments"></i> التعليقات ({{ comments|length }})
+        </h3>
+    </div>
+
+    <div class="comments-list">
+        {% if comments %} {% for comment in comments %}
+        <div class="comment">
+            <div class="comment-head">
+                <div class="c-av">{{ (comment.full_name or 'م')[0] }}</div>
+                <div class="c-name">{{ comment.full_name }}</div>
+                <div class="c-role">
+                    {% if comment.role == 'superadmin' %}
+                    <span class="badge b-superadmin">مدير النظام</span>
+                    {% elif comment.role == 'manager' %}
+                    <span class="badge b-manager">مدير قسم</span>
+                    {% else %}
+                    <span class="badge b-employee">موظف</span>
+                    {% endif %}
+                </div>
+                <div class="c-time">
+                    {{ comment.created_at[:10] }} {{ comment.created_at[11:16]
+                    }}
+                </div>
+            </div>
+            <div class="c-body">{{ comment.body }}</div>
+            {% if session.role in ['manager','superadmin'] or session.user_id ==
+            comment.user_id %}
+            <div class="comment-actions">
+                <form
+                    method="POST"
+                    action="{{ url_for('announcements.delete_comment', comment_id=comment.id) }}"
+                    onsubmit="
+                        return confirm('هل أنت متأكد من حذف هذا التعليق؟');
+                    "
+                    style="display: inline"
+                >
+                    <button type="submit" class="btn-ghost-comment">
+                        <i class="fas fa-trash"></i> حذف
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %} {% else %}
+        <div class="empty-comments">
+            <i class="fas fa-comment-slash"></i>
+            <p>لا توجد تعليقات بعد. كن أول من يعلق!</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Add Comment Form -->
+    <div class="add-comment">
+        <div class="comments-header">
+            <h3><i class="fas fa-pen"></i> أضف تعليقاً</h3>
+        </div>
+        <form
+            method="POST"
+            action="{{ url_for('announcements.add_comment', ann_id=ann.id) }}"
+        >
+            <div class="form-group">
+                <textarea
+                    name="body"
+                    class="form-control"
+                    rows="4"
+                    placeholder="اكتب تعليقك هنا..."
+                    required
+                ></textarea>
+            </div>
+            <button type="submit" class="btn btn-accent">
+                <i class="fas fa-paper-plane"></i> إرسال التعليق
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function toggleReaction(annId) {
+        fetch(`/announcements/${annId}/react`, { method: "POST" })
+            .then((res) => res.json())
+            .then((data) => {
+                if (!data.success) return;
+                const btn = document.getElementById("reactBtn");
+                const label = document.getElementById("reactLabel");
+                document.getElementById("reactCount").textContent = data.count;
+                if (data.liked) {
+                    btn.classList.remove("btn-ghost");
+                    btn.classList.add("btn-accent");
+                    label.textContent = "إلغاء التفاعل";
+                } else {
+                    btn.classList.remove("btn-accent");
+                    btn.classList.add("btn-ghost");
+                    label.textContent = "تفاعل";
+                }
+            })
+            .catch((err) => console.error("Error:", err));
+    }
+</script>
+
+{% endblock %}

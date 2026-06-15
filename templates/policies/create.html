@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}إضافة سياسة — آفاق الفكر{% endblock %}
+{% block page_title %}إضافة سياسة جديدة{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;margin:0 auto">
+  <div class="card">
+    <div class="card-head">
+      <h2><i class="fas fa-shield-alt" style="color:var(--indigo-light)"></i> سياسة جديدة</h2>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">القسم <span class="req">*</span></label>
+            <select name="department_id" class="form-control" required>
+              {% for d in departments %}<option value="{{ d.id }}">{{ d.name_ar }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">عنوان السياسة <span class="req">*</span></label>
+            <input type="text" name="title" class="form-control" placeholder="مثال: سياسة الحضور والانصراف" required>
+          </div>
+        </div>
+        <div class="form-group col-full">
+          <label class="form-label">محتوى السياسة <span class="req">*</span></label>
+          <textarea name="body" class="form-control" style="min-height:180px;" placeholder="اكتب نص السياسة بالتفصيل..." required></textarea>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+          <button type="submit" class="btn btn-accent"><i class="fas fa-save"></i> حفظ السياسة</button>
+          <a href="{{ url_for('announcements.index') }}" class="btn btn-ghost">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
