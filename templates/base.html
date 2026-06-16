@@ -114,31 +114,6 @@
                     <i class="fas fa-shield-alt"></i><span>سياسات القسم</span>
                 </button>
 
-                <div class="nav-label">اختصارات</div>
-           <div class="quick-links">
-
-    <a href="https://admin.ftth.iq/auth/logink" target="_blank">
-        <i class="fas fa-cube"></i>
-        <span>FTTH</span>
-    </a> <br><br>
-
-    <a href="http://65.20.190.212:8080/av-link" target="_blank">
-        <i class="fas fa-globe"></i>
-        <span>ODOO</span>
-    </a><br><br>
-
-    <a href="https://admin.earthlink.iq/Login.aspx?returnUrl=~/Home.aspx" target="_blank">
-        <i class="fas fa-users"></i>
-        <span>Reseller User Management</span>
-    </a><br><br>
-
-    <a href="https://earth.google.com/web/@0,-1.01426995,0a,22251752.77375655d,35y,0h,0t,0r/data=CgRCAggBOgMKATBCAggBSg0I____________ARAA" target="_blank">
-        <i class="fas fa-map-marked-alt"></i>
-        <span>Google Earth</span>
-    </a><br><br>
-
-</div>
-
                 {% if session.role in ['manager', 'superadmin'] %}
                 <div class="nav-label">الإدارة</div>
                 <a
@@ -157,6 +132,42 @@
                 </a>
                 {% endif %}
             </nav>
+
+            <div class="nav-label">اختصارات</div>
+            <div class="quick-links">
+                <a
+                    href="https://admin.ftth.iq/auth/login"
+                    target="_blank"
+                    class="quick-link"
+                >
+                    <i class="fas fa-cube"></i>
+                    <span>FTTH</span>
+                </a>
+                <a
+                    href="http://65.20.190.212:8080/"
+                    target="_blank"
+                    class="quick-link"
+                >
+                    <i class="fas fa-globe"></i>
+                    <span>Odoo</span>
+                </a>
+                <a
+                    href="https://admin.earthlink.iq/Login.aspx?returnUrl=~/Home.aspx"
+                    target="_blank"
+                    class="quick-link"
+                >
+                    <i class="fas fa-users"></i>
+                    <span>Reseller User Management</span>
+                </a>
+                <a
+                    href="https://earth.google.com/web/@0,-1.01426995,0a,22251752.77375655d,35y,0h,0t,0r/data=CgRCAggBOgMKATBCAggBSg0I____________ARAA"
+                    target="_blank"
+                    class="quick-link"
+                >
+                    <i class="fas fa-map-marked-alt"></i>
+                    <span>Google Earth</span>
+                </a>
+            </div>
 
             <div class="sidebar-user">
                 <div class="user-card">
